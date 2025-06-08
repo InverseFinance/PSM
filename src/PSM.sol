@@ -20,11 +20,12 @@ contract PSM {
     address public immutable gov;
 
     address public operator;
-    uint256 public depositFeeBps;   // e.g., 50 = 0.5%
-    uint256 public withdrawFeeBps;  // e.g., 50 = 0.5%
+    uint256 public depositFeeBps; // e.g., 50 = 0.5%
+    uint256 public withdrawFeeBps; // e.g., 50 = 0.5%
     uint256 public constant BPS_DENOMINATOR = 10_000;
     uint256 public supply;
-    uint256 public supplyCap; 
+    uint256 public supplyCap;
+
     event OperatorChanged(address indexed oldOperator, address indexed newOperator);
     event DepositFeeUpdated(uint256 oldFee, uint256 newFee);
     event WithdrawFeeUpdated(uint256 oldFee, uint256 newFee);
@@ -60,7 +61,7 @@ contract PSM {
         require(supply + amount <= supplyCap, "Supply cap exceeded");
         supply += amount;
         uint256 amountIn = amount;
-        if(depositFeeBps > 0) {
+        if (depositFeeBps > 0) {
             uint256 fee = (amount * depositFeeBps) / BPS_DENOMINATOR;
             amountIn += fee;
         }
@@ -72,7 +73,6 @@ contract PSM {
         emit Buy(msg.sender, amount, amountIn);
     }
 
-
     function sell(address to, uint256 amount) external {
         require(amount > 0, "Amount must be > 0");
         supply -= amount;
@@ -81,7 +81,7 @@ contract PSM {
 
         uint256 amountOut = amount;
 
-        if(withdrawFeeBps > 0) {
+        if (withdrawFeeBps > 0) {
             uint256 fee = (amount * withdrawFeeBps) / BPS_DENOMINATOR;
             amountOut -= fee;
         }
@@ -92,10 +92,10 @@ contract PSM {
 
     function takeProfit() external {
         uint256 vaultBal = vault.balanceOf(address(this));
-        uint256 amountOut = vault.previewRedeem(vaultBal); 
+        uint256 amountOut = vault.previewRedeem(vaultBal);
         uint256 profit = amountOut - supply;
         if (profit > 0) {
-            vault.withdraw(profit, gov, address(this)); 
+            vault.withdraw(profit, gov, address(this));
         }
     }
 
@@ -117,7 +117,6 @@ contract PSM {
         require(token != IERC20(address(vault)), "Vault token cannot be swept");
         token.safeTransfer(gov, token.balanceOf(address(this)));
     }
-
 
     function setDepositFeeBps(uint256 newFee) external onlyOperator {
         require(newFee <= BPS_DENOMINATOR, "Fee too high");

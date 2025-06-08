@@ -5,6 +5,7 @@ import "forge-std/Test.sol";
 import "src/PSM.sol";
 import {MockERC4626, ERC20} from "lib/solmate/src/test/utils/mocks/MockERC4626.sol";
 // Simple mocks for ERC20
+
 contract MockERC20 is IERC20 {
     string public name = "Mock";
     string public symbol = "MOCK";
@@ -18,26 +19,29 @@ contract MockERC20 is IERC20 {
         balanceOf[to] += amount;
         return true;
     }
+
     function approve(address spender, uint256 amount) external returns (bool) {
         allowance[msg.sender][spender] = amount;
         return true;
     }
+
     function transferFrom(address from, address to, uint256 amount) external returns (bool) {
         allowance[from][msg.sender] -= amount;
         balanceOf[from] -= amount;
         balanceOf[to] += amount;
         return true;
     }
+
     function mint(address to, uint256 amount) external {
         balanceOf[to] += amount;
         totalSupply += amount;
     }
+
     function burn(address from, uint256 amount) external {
         balanceOf[from] -= amount;
         totalSupply -= amount;
     }
 }
-
 
 contract PSMTest is Test {
     PSM psm;
@@ -89,7 +93,7 @@ contract PSMTest is Test {
         DOLA.approve(address(psm), type(uint256).max);
         console2.log(DOLA.balanceOf(user));
         // Now burn 1000 DOLA
-        psm.sell(user,1000 ether);
+        psm.sell(user, 1000 ether);
         vm.stopPrank();
 
         assertEq(collateral.balanceOf(gov), 0);
@@ -99,7 +103,7 @@ contract PSMTest is Test {
     }
 
     function testBurnDolaExceedSupply() public {
-        // Mint some DOLA 
+        // Mint some DOLA
         uint256 buyAmount = 1000 ether;
         vm.startPrank(user);
         psm.buy(user, buyAmount);
@@ -117,9 +121,8 @@ contract PSMTest is Test {
         vm.stopPrank();
     }
 
-
     function testTakeProfit() public {
-        // Mint some DOLA 
+        // Mint some DOLA
         uint256 buyAmount = 1000 ether;
         uint256 initialCollateralBal = collateral.balanceOf(user);
         vm.startPrank(user);
@@ -178,6 +181,7 @@ contract PSMTest is Test {
         vm.expectRevert("Not operator");
         psm.setSupplyCap(2_000_000 ether);
     }
+
     function testOperatorChange() public {
         address newOp = address(0x456);
         psm.setOperator(newOp);
