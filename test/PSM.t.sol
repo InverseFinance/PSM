@@ -87,7 +87,7 @@ contract PSMTest is Test {
         vm.startPrank(user);
         psm.buy(user, amount);
         vm.stopPrank();
-     
+
         uint256 buyFee = amount * psm.depositFeeBps() / 10000; // 0.5% deposit fee
         assertEq(collateral.balanceOf(address(vault)), amount + buyFee); // 1000 + 5 = 1005
         // User should have DOLA bought
@@ -114,11 +114,11 @@ contract PSMTest is Test {
 
     function test_SellDOLAWithFee(uint256 amount) public {
         vm.assume(amount > 0.000001 ether && amount <= 10000000 ether);
-      
+
         uint256 initialCollateralBal = collateral.balanceOf(user);
         vm.startPrank(user);
         psm.buy(user, amount);
-       
+
         console2.log(DOLA.balanceOf(user));
         // Now burn All DOLA
         DOLA.approve(address(psm), type(uint256).max);
@@ -135,10 +135,10 @@ contract PSMTest is Test {
 
     function test_SellDolaExceedSupply(uint256 amount) public {
         vm.assume(amount > 0.000001 ether && amount <= 10000000 ether);
-    
+
         vm.prank(user);
         psm.buy(user, amount);
-   
+
         vm.stopPrank();
 
         // Now try to sell more than bought
@@ -173,7 +173,7 @@ contract PSMTest is Test {
 
         uint256 buyFee = amount * psm.depositFeeBps() / 10000; // 0.5% deposit fee
         // Check that profit was taken
-        assertEq(collateral.balanceOf(gov), profit + buyFee); 
+        assertEq(collateral.balanceOf(gov), profit + buyFee);
 
         uint256 sellFee = amount * psm.withdrawFeeBps() / 10000; // 1% withdraw fee
         // User sells all DOLA
@@ -196,24 +196,24 @@ contract PSMTest is Test {
     function test_Migrate_Vault(uint256 amount) public {
         vm.assume(amount > 0.000001 ether && amount <= 10000000 ether);
         uint256 fee = test_BuyDOLAWithFee(amount);
-         // Simulate profit in vault
+        // Simulate profit in vault
         uint256 profit = 200 ether; // Assume profit of 200 ether
         collateral.mint(address(vault), profit); // Add profit to vault
-        
+
         MockERC4626 newVault = new MockERC4626(ERC20(address(collateral)), "New Vault", "NEW");
         vm.prank(gov);
-        psm.migrate(address(newVault)); 
+        psm.migrate(address(newVault));
         assertEq(address(psm.vault()), address(newVault));
         // Profit was taken and transferred to governance plus the deposit fee
         assertEq(collateral.balanceOf(gov), profit + fee);
         // Check new vault has the correct balance
-        assertEq(newVault.balanceOf(address(psm)), amount); 
+        assertEq(newVault.balanceOf(address(psm)), amount);
     }
 
     function test_2_users_buy_then_migrate_with_profit_then_contract_and_sell() public {
         address user2 = address(0x456);
         collateral.mint(user2, 5000 ether); // Give user2 some collateral
-        
+
         uint256 amount1 = 1000 ether;
         uint256 amount2 = 2000 ether;
         uint256 user1CollateralBal = collateral.balanceOf(user);
@@ -233,7 +233,7 @@ contract PSMTest is Test {
         assertEq(DOLA.balanceOf(user), amount1);
         assertEq(DOLA.balanceOf(user2), amount2);
 
-        assertEq(collateral.balanceOf(address(gov)),0) ; // Gov should have no collateral yet
+        assertEq(collateral.balanceOf(address(gov)), 0); // Gov should have no collateral yet
         // Simulate profit in vault
         uint256 profit = 100 ether; // Assume profit of 100 ether
         collateral.mint(address(vault), 100 ether);
@@ -244,13 +244,13 @@ contract PSMTest is Test {
         // After migration, profit and fees should be taken and transferred to governance
         uint256 fee = (amount1 + amount2) * psm.depositFeeBps() / 10000; // 0.5% deposit fee
         assertEq(collateral.balanceOf(gov), profit + fee); // Gov should have profit + deposit fee
-       
+
         // Check new vault has the correct balance
         assertEq(newVault.balanceOf(address(psm)), amount1 + amount2);
 
-        // Full contraction but can still sell DOLA 
+        // Full contraction but can still sell DOLA
         vm.prank(gov);
-        fed.contraction(DOLA.balanceOf(address(psm))); 
+        fed.contraction(DOLA.balanceOf(address(psm)));
 
         // User 1 sells DOLA
         vm.startPrank(user);
@@ -271,6 +271,7 @@ contract PSMTest is Test {
         assertEq(collateral.balanceOf(user), user1CollateralBal - (buyFee1 + sellFee1));
         assertEq(collateral.balanceOf(user2), user2CollateralBal - (buyFee2 + sellFee2));
     }
+
     function test_Fail_if_no_DOLA_available() public {
         uint256 dolaBalance = DOLA.balanceOf(address(psm));
         fed.contraction(dolaBalance);
@@ -302,6 +303,7 @@ contract PSMTest is Test {
         psm.setGov(newOp);
         assertEq(psm.gov(), newOp);
     }
+
     function test_NonGovCannotUpdateFees() public {
         vm.startPrank(user);
         vm.expectRevert("Not gov");
@@ -316,13 +318,13 @@ contract PSMTest is Test {
         psm.setDepositFeeBps(10001); // 100.1%
         vm.stopPrank();
     }
+
     function test_Fail_WithdrawFee_TooHigh() public {
         vm.startPrank(gov);
         vm.expectRevert("Fee too high");
         psm.setWithdrawFeeBps(10001); // 100.1%
         vm.stopPrank();
     }
-
 
     function test_Fail_Zero_Amount() public {
         vm.startPrank(user);
@@ -335,14 +337,10 @@ contract PSMTest is Test {
 
     function test_Fail_buy_and_sell_if_denied_by_Controller() public {
         vm.mockCall(
-            address(psm.controller()),
-            abi.encodeWithSelector(Controller.isBuyAllowed.selector),
-            abi.encode(false)
+            address(psm.controller()), abi.encodeWithSelector(Controller.isBuyAllowed.selector), abi.encode(false)
         );
         vm.mockCall(
-            address(psm.controller()),
-            abi.encodeWithSelector(Controller.isSellAllowed.selector),
-            abi.encode(false)
+            address(psm.controller()), abi.encodeWithSelector(Controller.isSellAllowed.selector), abi.encode(false)
         );
         vm.startPrank(user);
         vm.expectRevert("Denied by controller");
@@ -351,6 +349,7 @@ contract PSMTest is Test {
         psm.sell(user, 1000 ether);
         vm.stopPrank();
     }
+
     function test_getCollateralOut() public {
         uint256 dolaAmount = 1000 ether;
         uint256 expectedCollateralOut = dolaAmount - (dolaAmount * psm.withdrawFeeBps() / 10000); // 1% fee
@@ -368,7 +367,7 @@ contract PSMTest is Test {
         vm.startPrank(user);
         psm.buy(user, dolaAmount);
         vm.stopPrank();
-        
+
         uint256 totalReserves = psm.getTotalReserves();
         assertEq(totalReserves, dolaAmount + (dolaAmount * psm.depositFeeBps() / 10000)); // Total reserves should include DOLA supply + deposit fee
     }
@@ -378,7 +377,7 @@ contract PSMTest is Test {
         vm.startPrank(user);
         psm.buy(user, dolaAmount);
         vm.stopPrank();
-        
+
         uint256 profit = psm.getProfit();
         assertEq(profit, (dolaAmount * psm.depositFeeBps() / 10000)); // Profit should equal to fees collected
     }
@@ -386,46 +385,49 @@ contract PSMTest is Test {
     function test_PSMFed_expansion(uint256 expansionAmount) public {
         uint256 initialSupply = fed.supply();
         vm.assume(expansionAmount > 0 && expansionAmount <= fed.supplyCap() - initialSupply);
-        
+
         vm.prank(fed.chair());
         fed.expansion(expansionAmount);
-        
+
         assertEq(fed.supply(), initialSupply + expansionAmount);
         assertEq(DOLA.balanceOf(address(psm)), initialSupply + expansionAmount);
     }
+
     function test_PSMFed_contraction(uint256 contractionAmount) public {
         uint256 initialSupply = fed.supply();
         vm.assume(contractionAmount > 0 && contractionAmount <= initialSupply);
-        
+
         vm.prank(fed.chair());
         fed.contraction(contractionAmount);
-        
+
         assertEq(fed.supply(), initialSupply - contractionAmount);
         assertEq(DOLA.balanceOf(address(psm)), initialSupply - contractionAmount);
     }
 
     function test_PSMFed_setSupplyCap(uint256 newSupplyCap) public {
         vm.assume(newSupplyCap > 0 && newSupplyCap < 100000000 ether);
-        
+
         vm.prank(gov);
         fed.setSupplyCap(newSupplyCap);
-        
+
         assertEq(fed.supplyCap(), newSupplyCap);
     }
+
     function test_PSMFed_setChair(address newChair) public {
         vm.assume(newChair != address(0));
-        
+
         vm.prank(gov);
         fed.setChair(newChair);
-        
+
         assertEq(fed.chair(), newChair);
     }
+
     function test_PSMFed_resign() public {
         address initialChair = fed.chair();
-        
+
         vm.prank(initialChair);
         fed.resign();
-        
+
         assertEq(fed.chair(), address(0));
     }
 }

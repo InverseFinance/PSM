@@ -18,7 +18,7 @@ contract PSM {
     IERC20 public immutable collateral;
     IERC20 public immutable DOLA;
     address public immutable fed; // PSMFed contract address
-    
+
     address public gov;
     IController public controller; // Controller contract address
     uint256 public depositFeeBps; // e.g., 50 = 0.5%
@@ -55,7 +55,7 @@ contract PSM {
         withdrawFeeBps = _withdrawFeeBps;
         controller = IController(_controller);
         fed = address(new PSMFed(address(this), _gov, _chair, _DOLA));
-        DOLA.approve(fed, type(uint256).max); 
+        DOLA.approve(fed, type(uint256).max);
     }
 
     modifier onlyGov() {
@@ -87,6 +87,7 @@ contract PSM {
     function sell(uint256 amount) external {
         sell(msg.sender, amount);
     }
+
     function sell(address to, uint256 amount) public {
         require(amount > 0, "Amount must be > 0");
         require(controller.isSellAllowed(), "Denied by controller");
@@ -119,7 +120,7 @@ contract PSM {
     }
 
     function getProfit() external view returns (uint256) {
-        return getTotalReserves() - supply; 
+        return getTotalReserves() - supply;
     }
 
     function getCollateralIn(uint256 dolaBuyAmount) external view returns (uint256) {
@@ -135,21 +136,21 @@ contract PSM {
     function migrate(address newVault) external onlyGov {
         require(newVault != address(0), "Zero address");
         require(IERC4626(newVault).asset() == address(collateral), "New vault must accept collateral");
-        
+
         takeProfit();
 
-        if(vault.balanceOf(address(this)) != 0) {
+        if (vault.balanceOf(address(this)) != 0) {
             vault.redeem(vault.balanceOf(address(this)), address(this), address(this));
         }
-        
+
         address oldVault = address(vault);
         vault = IERC4626(newVault);
         uint256 collateralBalance = collateral.balanceOf(address(this));
-        collateral.approve(address(vault),collateralBalance);
+        collateral.approve(address(vault), collateralBalance);
         vault.deposit(collateralBalance, address(this));
         emit VaultMigrated(oldVault, newVault);
     }
-    
+
     function sweep(IERC20 token) external onlyGov {
         token.safeTransfer(gov, token.balanceOf(address(this)));
     }

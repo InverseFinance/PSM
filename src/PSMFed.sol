@@ -8,7 +8,6 @@ interface IDOLA is IERC20 {
     function burn(address from, uint256 amount) external;
 }
 
-
 contract PSMFed {
     address public immutable psm;
     address public immutable gov;
@@ -32,6 +31,7 @@ contract PSMFed {
         require(msg.sender == gov, "Not governance");
         _;
     }
+
     modifier onlyChair() {
         require(msg.sender == chair, "Not chair");
         _;
@@ -43,6 +43,7 @@ contract PSMFed {
         supply += amount;
         DOLA.mint(psm, amount);
     }
+
     function contraction(uint256 amount) external onlyChair {
         require(amount > 0, "Amount must be > 0");
         supply -= amount;
@@ -63,7 +64,7 @@ contract PSMFed {
         emit ChairChanged(oldChair, newChair);
     }
 
-    function resign() external onlyChair() {
+    function resign() external onlyChair {
         address oldChair = chair;
         chair = address(0);
         emit ChairChanged(oldChair, address(0));
