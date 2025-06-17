@@ -10,13 +10,16 @@ interface IDOLA is IERC20 {
 
 contract PSMFed {
     address public immutable psm;
-    address public immutable gov;
     IDOLA public immutable DOLA;
 
+    address public gov;
+    address public pendingGov;
     address public chair;
     uint256 public supply; // Current DOLA amount supplied to the PSM
     uint256 public supplyCap; // Maximum DOLA supply allowed in the PSM
 
+    event GovChanged(address indexed oldGov, address indexed newGov);
+    event PendingGovUpdated(address indexed pendingGov);
     event ChairChanged(address indexed oldChair, address indexed newChair);
     event SupplyCapUpdated(uint256 oldSupplyCap, uint256 newSupplyCap);
 
@@ -68,5 +71,17 @@ contract PSMFed {
         address oldChair = chair;
         chair = address(0);
         emit ChairChanged(oldChair, address(0));
+    }
+
+    function setPendingGov(address _pendingGov) external onlyGov {
+        pendingGov = _pendingGov;
+        emit PendingGovUpdated(_pendingGov);
+    }
+
+    function claimPendingGov() external {
+        require(msg.sender == pendingGov, "Not pending gov");
+        emit GovChanged(gov, pendingGov);
+        gov = pendingGov;
+        pendingGov = address(0);
     }
 }

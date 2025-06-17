@@ -148,10 +148,11 @@ contract PSMTest is Test {
         uint256 buyFee = amount * psm.depositFeeBps() / 10000; // 0.5% deposit fee
         uint256 sellFee = amount * psm.withdrawFeeBps() / 10000; // 1% withdraw fee
         assertEq(collateral.balanceOf(address(vault)), buyFee + sellFee); // deposit and withdraw fees
+        assertEq(psm.getProfit(), buyFee + sellFee); // No profit taken yet
 
-        DOLA.mint(user, 15 ether); // Mint some DOLA to user
+        DOLA.mint(user, buyFee + sellFee); // Mint some DOLA to user to attempt taking profit by selling
         vm.expectRevert();
-        psm.sell(user, 15 ether);
+        psm.sell(user, buyFee + sellFee);
         vm.stopPrank();
     }
 
@@ -297,11 +298,21 @@ contract PSMTest is Test {
         assertEq(address(psm.controller()), address(newController));
     }
 
-    function test_GovChange() public {
-        address newOp = address(0x456);
+    function test_PendingGov() public {
+        address newGov = address(0x456);
         vm.prank(gov);
-        psm.setGov(newOp);
-        assertEq(psm.gov(), newOp);
+        psm.setPendingGov(newGov);
+        assertEq(psm.pendingGov(), newGov);
+    }
+
+    function test_ClaimPendingGov() public {
+        address newGov = address(0x456);
+        vm.prank(gov);
+        psm.setPendingGov(newGov);
+        vm.prank(newGov);
+        psm.claimPendingGov();
+        assertEq(psm.gov(), newGov);
+        assertEq(psm.pendingGov(), address(0));
     }
 
     function test_NonGovCannotUpdateFees() public {
@@ -369,7 +380,7 @@ contract PSMTest is Test {
         vm.stopPrank();
 
         uint256 totalReserves = psm.getTotalReserves();
-        assertEq(totalReserves, dolaAmount + (dolaAmount * psm.depositFeeBps() / 10000)); // Total reserves should include DOLA supply + deposit fee
+        assertEq(totalReserves, DOLA.balanceOf(address(psm)) + dolaAmount + (dolaAmount * psm.depositFeeBps() / 10000)); // Total reserves should include DOLA supply + deposit fee
     }
 
     function test_getProfit() public {

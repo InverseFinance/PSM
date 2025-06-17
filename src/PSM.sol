@@ -8,8 +8,8 @@ import "@openzeppelin/contracts/interfaces/IERC4626.sol";
 import {PSMFed} from "src/PSMFed.sol";
 
 interface IController {
-    function isBuyAllowed() external view returns (bool);
-    function isSellAllowed() external view returns (bool);
+    function isBuyAllowed(uint256 amount) external view returns (bool);
+    function isSellAllowed(uint256 amount) external view returns (bool);
 }
 
 contract PSM {
@@ -20,6 +20,7 @@ contract PSM {
     address public immutable fed; // PSMFed contract address
 
     address public gov;
+    address public pendingGov;
     IController public controller; // Controller contract address
     uint256 public depositFeeBps; // e.g., 50 = 0.5%
     uint256 public withdrawFeeBps; // e.g., 50 = 0.5%
@@ -27,7 +28,8 @@ contract PSM {
     uint256 public supply; // Collateral supplied in the PSM (excluding fees and profit)
     IERC4626 public vault;
 
-    event GovChanged(address indexed oldOperator, address indexed newOperator);
+    event GovChanged(address indexed oldGov, address indexed newGov);
+    event PendingGovUpdated(address indexed pendingGov);
     event ControllerChanged(address indexed oldController, address indexed newController);
     event VaultMigrated(address indexed oldVault, address indexed newVault);
     event DepositFeeUpdated(uint256 oldFee, uint256 newFee);
@@ -69,7 +71,7 @@ contract PSM {
 
     function buy(address to, uint256 amount) public {
         require(amount > 0, "Amount must be > 0");
-        require(controller.isBuyAllowed(), "Denied by controller");
+        require(controller.isBuyAllowed(amount), "Denied by controller");
         supply += amount;
         uint256 amountIn = amount;
         if (depositFeeBps > 0) {
@@ -90,7 +92,7 @@ contract PSM {
 
     function sell(address to, uint256 amount) public {
         require(amount > 0, "Amount must be > 0");
-        require(controller.isSellAllowed(), "Denied by controller");
+        require(controller.isSellAllowed(amount), "Denied by controller");
         supply -= amount;
         DOLA.safeTransferFrom(msg.sender, address(this), amount);
 
@@ -167,10 +169,16 @@ contract PSM {
         withdrawFeeBps = newFee;
     }
 
-    function setGov(address newGov) external onlyGov {
-        require(newGov != address(0), "Zero address");
-        emit GovChanged(gov, newGov);
-        gov = newGov;
+    function setPendingGov(address _pendingGov) external onlyGov {
+        pendingGov = _pendingGov;
+        emit PendingGovUpdated(_pendingGov);
+    }
+
+    function claimPendingGov() external {
+        require(msg.sender == pendingGov, "Not pending gov");
+        emit GovChanged(gov, pendingGov);
+        gov = pendingGov;
+        pendingGov = address(0);
     }
 
     function setController(address newController) external onlyGov {
