@@ -380,7 +380,25 @@ contract PSMTest is Test {
         vm.stopPrank();
 
         uint256 totalReserves = psm.getTotalReserves();
-        assertEq(totalReserves, dolaAmount + (dolaAmount * psm.depositFeeBps() / 10000)); // Total reserves should include DOLA supply + deposit fee
+        assertEq(totalReserves, dolaAmount + (dolaAmount * psm.depositFeeBps() / 10000)); // Total reserves is USDS supply + deposit fee
+        assertEq(totalReserves, psm.supply() + psm.getProfit()); // Should equal supply + profit
+        assertEq(totalReserves, psm.vault().previewRedeem(psm.vault().balanceOf(address(psm)))); // Should match vault balance
+    }
+
+    function test_getTotalReserves_with_profit() public {
+        uint256 dolaAmount = 1000 ether;
+        vm.startPrank(user);
+        psm.buy(user, dolaAmount);
+        vm.stopPrank();
+
+        // Simulate profit in vault
+        uint256 profit = 200 ether; // Assume profit of 200 ether
+        collateral.mint(address(vault), profit); // Add profit to vault
+
+        uint256 totalReserves = psm.getTotalReserves();
+        assertEq(totalReserves, dolaAmount + (dolaAmount * psm.depositFeeBps() / 10000) + profit); // Total reserves is USDS supply + deposit fee and profit
+        assertEq(totalReserves, psm.supply() + psm.getProfit()); // Should equal supply + profit
+        assertEq(totalReserves, psm.vault().previewRedeem(psm.vault().balanceOf(address(psm)))); // Should match vault balance
     }
 
     function test_getProfit() public {
