@@ -380,7 +380,7 @@ contract PSMTest is Test {
         vm.stopPrank();
 
         uint256 totalReserves = psm.getTotalReserves();
-        assertEq(totalReserves, DOLA.balanceOf(address(psm)) + dolaAmount + (dolaAmount * psm.depositFeeBps() / 10000)); // Total reserves should include DOLA supply + deposit fee
+        assertEq(totalReserves, dolaAmount + (dolaAmount * psm.depositFeeBps() / 10000)); // Total reserves should include DOLA supply + deposit fee
     }
 
     function test_getProfit() public {
