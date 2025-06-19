@@ -40,6 +40,13 @@ contract PSMFed {
         _;
     }
 
+    /**
+     * @notice Allows the chair to expand the supply of DOLA in the PSM.
+     * @dev This function increases the supply of DOLA in the PSM and mints
+     * the specified amount of DOLA.
+     * @dev The amount must be greater than zero and cannot exceed the supply cap.
+     * @param amount The amount of DOLA to expand.
+     */
     function expansion(uint256 amount) external onlyChair {
         require(amount > 0, "Amount must be > 0");
         require(amount + supply <= supplyCap, "Supply cap exceeded");
@@ -47,6 +54,13 @@ contract PSMFed {
         DOLA.mint(psm, amount);
     }
 
+    /**
+     * @notice Allows the chair to contract the supply of DOLA in the PSM.
+     * @dev This function reduces the supply of DOLA in the PSM and burns the
+     * specified amount of DOLA.
+     * @dev The amount must be greater than zero and cannot exceed the current supply.
+     * @param amount The amount of DOLA to contract.
+     */
     function contraction(uint256 amount) external onlyChair {
         require(amount > 0, "Amount must be > 0");
         supply -= amount;
@@ -54,12 +68,22 @@ contract PSMFed {
         DOLA.burn(address(this), amount);
     }
 
+
+    /**
+     * @notice Allows governance to set a new supply cap.
+     * @param newSupplyCap The new supply cap for DOLA in the PSM.
+     */
     function setSupplyCap(uint256 newSupplyCap) external onlyGov {
         uint256 oldSupplyCap = supplyCap;
         supplyCap = newSupplyCap;
         emit SupplyCapUpdated(oldSupplyCap, newSupplyCap);
     }
 
+    /**
+     * @notice Allows governance to set a new chair.
+     * @dev The new chair must not be the zero address.
+     * @param newChair Address of the new chair.
+     */
     function setChair(address newChair) external onlyGov {
         require(newChair != address(0), "Invalid address");
         address oldChair = chair;
@@ -67,17 +91,30 @@ contract PSMFed {
         emit ChairChanged(oldChair, newChair);
     }
 
+    /**
+     * @notice Allows the current chair to resign.
+     * @dev The chair can resign, leaving the chair address as zero.
+     */
     function resign() external onlyChair {
         address oldChair = chair;
         chair = address(0);
         emit ChairChanged(oldChair, address(0));
     }
-
+    
+    /**
+     * @notice Allows governance to set a new pending governance.
+     * @dev The pending governance must accept the role.
+     * @param _pendingGov Address of the new pending governance.
+     */
     function setPendingGov(address _pendingGov) external onlyGov {
         pendingGov = _pendingGov;
         emit PendingGovUpdated(_pendingGov);
     }
 
+    /**
+     * @notice Allows the pending governance to claim the governance role.
+     * @dev Can only be called by the pending governance.
+     */
     function claimPendingGov() external {
         require(msg.sender == pendingGov, "Not pending gov");
         emit GovChanged(gov, pendingGov);

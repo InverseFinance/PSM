@@ -65,31 +65,50 @@ contract PSM {
         _;
     }
 
+    /**
+     * @notice Allows to buy DOLA minus fee using collateral.
+     * @param amount Amount of collateral to sell for DOLA.
+     */
     function buy(uint256 amount) external {
         buy(msg.sender, amount);
     }
 
-    function buy(address to, uint256 amount) public {
-        require(amount > 0, "Amount must be > 0");
-        require(controller.isBuyAllowed(amount), "Denied by controller");
-        supply += amount;
-        uint256 amountIn = amount;
+	/**
+	 * @notice Allows to buy DOLA minus fee using collateral.
+	 * @param to DOLA receiver.
+	 * @param amountIn Amount of collateral to sell for DOLA.
+	 */
+    function buy(address to, uint256 amountIn) public {
+        require(amountIn > 0, "Amount must be > 0");
+        require(controller.isBuyAllowed(amountIn), "Denied by controller");
+        uint256 amountOut = amountIn;
+
         if (depositFeeBps > 0) {
-            uint256 fee = (amount * depositFeeBps) / BPS_DENOMINATOR;
-            amountIn += fee;
+            uint256 fee = (amountIn * depositFeeBps) / BPS_DENOMINATOR;
+            amountOut -= fee;
         }
+        supply += amountOut;
 
         collateral.safeTransferFrom(msg.sender, address(this), amountIn);
         collateral.approve(address(vault), amountIn);
         vault.deposit(amountIn, address(this));
-        DOLA.safeTransfer(to, amount);
-        emit Buy(msg.sender, amount, amountIn);
+        DOLA.safeTransfer(to, amountOut);
+        emit Buy(msg.sender, amountIn, amountOut);
     }
 
+    /**
+     * @notice Allows to sell DOLA for collateral minus fee.
+     * @param amount Amount of DOLA to sell.
+     */
     function sell(uint256 amount) external {
         sell(msg.sender, amount);
     }
 
+    /**
+     * @notice Allows to sell DOLA for collateral minus fee.
+     * @param to Address to receive the collateral.
+     * @param amount Amount of DOLA to sell.
+     */
     function sell(address to, uint256 amount) public {
         require(amount > 0, "Amount must be > 0");
         require(controller.isSellAllowed(amount), "Denied by controller");
@@ -107,6 +126,10 @@ contract PSM {
         emit Sell(msg.sender, amount, amountOut);
     }
 
+    /**
+     * @notice Takes profit from the vault and transfers it to the governance address.
+     * @dev Can be called by anyone to transfer profits and fees to governance.
+     */
     function takeProfit() public {
         uint256 vaultBal = vault.balanceOf(address(this));
         uint256 amountOut = vault.previewRedeem(vaultBal);
@@ -116,25 +139,47 @@ contract PSM {
         }
     }
 
-    // Include profit and fees in total reserves
+    /**
+     * @notice Returns the total collateral reserves in the vault, including profit and fees.
+     * @return Total reserves in the vault.
+     */
     function getTotalReserves() public view returns (uint256) {
         return vault.previewRedeem(vault.balanceOf(address(this)));
     }
 
+    /**
+     * @notice Returns the total profit made by the PSM.
+     * @return Total profit in the PSM.
+     */
     function getProfit() external view returns (uint256) {
         return getTotalReserves() - supply;
     }
 
-    function getCollateralIn(uint256 dolaBuyAmount) external view returns (uint256) {
-        uint256 fee = (dolaBuyAmount * depositFeeBps) / BPS_DENOMINATOR;
-        return dolaBuyAmount + fee;
+    /**
+     * @notice Returns the amount of DOLA that can be obtained for a given amount of collateral.
+     * @param collateralIn Amount of collateral to convert to DOLA.
+     * @return Amount of DOLA that will be received after fees.
+     */
+    function getDolaOut(uint256 collateralIn) external view returns (uint256) {
+        uint256 fee = (collateralIn * depositFeeBps) / BPS_DENOMINATOR;
+        return collateralIn - fee;
     }
 
-    function getCollateralOut(uint256 dolaSellAmount) external view returns (uint256) {
-        uint256 fee = (dolaSellAmount * withdrawFeeBps) / BPS_DENOMINATOR;
-        return dolaSellAmount - fee;
+    /**
+     * @notice Returns the amount of collateral that can be obtained for a given amount of DOLA.
+     * @param dolaIn Amount of DOLA to convert to collateral.
+     * @return Amount of collateral that will be received after fees.
+     */
+    function getCollateralOut(uint256 dolaIn) external view returns (uint256) {
+        uint256 fee = (dolaIn * withdrawFeeBps) / BPS_DENOMINATOR;
+        return dolaIn - fee;
     }
 
+    /**
+     * @notice Migrate the vault to a new IERC4626 vault.
+     * @dev Can only be called by governance and will take profit before migration.
+     * @param newVault Address of the new vault to migrate to.
+     */
     function migrate(address newVault) external onlyGov {
         require(newVault != address(0), "Zero address");
         require(IERC4626(newVault).asset() == address(collateral), "New vault must accept collateral");
@@ -153,27 +198,49 @@ contract PSM {
         emit VaultMigrated(oldVault, newVault);
     }
 
+    /**
+     * @notice Allows governance to sweep any ERC20 tokens from the contract.
+     * @dev Can only be called by governance.
+     * @param token The ERC20 token to sweep.
+     */
     function sweep(IERC20 token) external onlyGov {
         token.safeTransfer(gov, token.balanceOf(address(this)));
     }
 
+    /**
+     * @notice Allows governance to set the deposit fee.
+     * @dev The fee is specified in basis points (bps), where 100 bps = 1%.
+     */
     function setDepositFeeBps(uint256 newFee) external onlyGov {
         require(newFee <= BPS_DENOMINATOR, "Fee too high");
         emit DepositFeeUpdated(depositFeeBps, newFee);
         depositFeeBps = newFee;
     }
 
+    /**
+     * @notice Allows governance to set the withdraw fee.
+     * @dev The fee is specified in basis points (bps), where 100 bps = 1%.
+     */
     function setWithdrawFeeBps(uint256 newFee) external onlyGov {
         require(newFee <= BPS_DENOMINATOR, "Fee too high");
         emit WithdrawFeeUpdated(withdrawFeeBps, newFee);
         withdrawFeeBps = newFee;
     }
 
+    /**
+     * @notice Allows governance to set a new pending governance.
+     * @dev The pending governance must accept the role.
+     * @param _pendingGov Address of the new pending governance.
+     */
     function setPendingGov(address _pendingGov) external onlyGov {
         pendingGov = _pendingGov;
         emit PendingGovUpdated(_pendingGov);
     }
 
+    /**
+     * @notice Allows the pending governance to claim the governance role.
+     * @dev Can only be called by the pending governance.
+     */
     function claimPendingGov() external {
         require(msg.sender == pendingGov, "Not pending gov");
         emit GovChanged(gov, pendingGov);
@@ -181,6 +248,11 @@ contract PSM {
         pendingGov = address(0);
     }
 
+    /**
+     * @notice Allows governance to set a new controller.
+     * @dev The new controller must not be the zero address.
+     * @param newController Address of the new controller.
+     */
     function setController(address newController) external onlyGov {
         require(newController != address(0), "Zero address");
         emit ControllerChanged(address(controller), newController);
