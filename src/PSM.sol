@@ -73,11 +73,11 @@ contract PSM {
         buy(msg.sender, amount);
     }
 
-	/**
-	 * @notice Allows to buy DOLA minus fee using collateral.
-	 * @param to DOLA receiver.
-	 * @param amountIn Amount of collateral to sell for DOLA.
-	 */
+    /**
+     * @notice Allows to buy DOLA minus fee using collateral.
+     * @param to DOLA receiver.
+     * @param amountIn Amount of collateral to sell for DOLA.
+     */
     function buy(address to, uint256 amountIn) public {
         require(amountIn > 0, "Amount must be > 0");
         require(controller.isBuyAllowed(amountIn), "Denied by controller");

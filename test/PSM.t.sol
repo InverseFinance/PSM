@@ -89,9 +89,9 @@ contract PSMTest is Test {
         vm.stopPrank();
 
         uint256 buyFee = amount * psm.depositFeeBps() / 10000; // 0.5% deposit fee
-        assertEq(collateral.balanceOf(address(vault)), amount); 
+        assertEq(collateral.balanceOf(address(vault)), amount);
         // User should have DOLA bought
-        assertEq(DOLA.balanceOf(user), amount - buyFee); 
+        assertEq(DOLA.balanceOf(user), amount - buyFee);
         return buyFee;
     }
 
@@ -134,10 +134,9 @@ contract PSMTest is Test {
         uint256 buyFee = amount * psm.depositFeeBps() / 10000; // 0.5% deposit fee
         assertEq(dolaToSell, amount - buyFee); // User should have bought DOLA
         DOLA.approve(address(psm), dolaToSell);
-        psm.sell(user, dolaToSell); 
+        psm.sell(user, dolaToSell);
         vm.stopPrank();
 
-       
         uint256 sellFee = dolaToSell * psm.withdrawFeeBps() / 10000; // 1% withdraw fee
         assertEq(collateral.balanceOf(gov), 0);
         assertEq(collateral.balanceOf(user), initialCollateralBal - (buyFee + sellFee)); // User gets back collateral minus fees
@@ -151,12 +150,12 @@ contract PSMTest is Test {
         vm.startPrank(user);
         psm.buy(user, amount);
         uint256 buyFee = amount * psm.depositFeeBps() / 10000; // 0.5% deposit fee
-      
+
         uint256 dolaToSell = DOLA.balanceOf(user);
         assertEq(dolaToSell, amount - buyFee); // User should have bought DOLA
         DOLA.approve(address(psm), type(uint256).max);
         psm.sell(user, dolaToSell);
-       
+
         uint256 sellFee = dolaToSell * psm.withdrawFeeBps() / 10000; // 1% withdraw fee
         assertEq(collateral.balanceOf(address(vault)), buyFee + sellFee); // deposit and withdraw fees
         assertEq(psm.getProfit(), buyFee + sellFee); // No profit taken yet
@@ -282,8 +281,12 @@ contract PSMTest is Test {
         vm.stopPrank();
 
         // Check both users got their collateral back minus fees
-        assertEq(collateral.balanceOf(user), user1CollateralBal - (buyFee1 + dolaToSell1 * psm.withdrawFeeBps() / 10000));
-        assertEq(collateral.balanceOf(user2), user2CollateralBal - (buyFee2 + dolaToSell2 * psm.withdrawFeeBps() / 10000));
+        assertEq(
+            collateral.balanceOf(user), user1CollateralBal - (buyFee1 + dolaToSell1 * psm.withdrawFeeBps() / 10000)
+        );
+        assertEq(
+            collateral.balanceOf(user2), user2CollateralBal - (buyFee2 + dolaToSell2 * psm.withdrawFeeBps() / 10000)
+        );
     }
 
     function test_Fail_if_no_DOLA_available() public {
@@ -394,9 +397,9 @@ contract PSMTest is Test {
         vm.stopPrank();
         // Check total reserves after buying DOLA
         uint256 totalReserves = psm.getTotalReserves();
-        assertEq(totalReserves, collateralAmount); // Total reserves is USDS supply 
+        assertEq(totalReserves, collateralAmount); // Total reserves is USDS supply
         assertEq(totalReserves, psm.supply() + psm.getProfit()); // Should equal supply + profit
-        assertEq(initialDolaBal- DOLA.balanceOf(address(psm)), collateralAmount - psm.getProfit()); // DOLA bought should match collateral supplied minus profit
+        assertEq(initialDolaBal - DOLA.balanceOf(address(psm)), collateralAmount - psm.getProfit()); // DOLA bought should match collateral supplied minus profit
         assertEq(totalReserves, psm.vault().previewRedeem(psm.vault().balanceOf(address(psm)))); // Should match vault balance
     }
 

@@ -2,7 +2,6 @@
 pragma solidity ^0.8.20;
 
 contract Controller {
-    
     /**
      * @notice Checks if a buy operation is allowed.
      * @dev This function can be modified to include specific conditions for allowing buys.
@@ -12,7 +11,7 @@ contract Controller {
      */
     function isBuyAllowed(uint256 amount) external pure returns (bool) {
         amount; // To avoid unused variable warning
-        return true; 
+        return true;
     }
 
     /**

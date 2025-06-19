@@ -68,7 +68,6 @@ contract PSMFed {
         DOLA.burn(address(this), amount);
     }
 
-
     /**
      * @notice Allows governance to set a new supply cap.
      * @param newSupplyCap The new supply cap for DOLA in the PSM.
@@ -100,7 +99,7 @@ contract PSMFed {
         chair = address(0);
         emit ChairChanged(oldChair, address(0));
     }
-    
+
     /**
      * @notice Allows governance to set a new pending governance.
      * @dev The pending governance must accept the role.
