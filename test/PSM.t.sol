@@ -289,6 +289,89 @@ contract PSMTest is Test {
         );
     }
 
+    function test_migrate_manually_via_gov_if_maxRedeem_lower_than_psm_balance() public {
+        address user2 = address(0x456);
+        collateral.mint(user2, 5000 ether); // Give user2 some collateral
+
+        uint256 amount1 = 1000 ether;
+        uint256 amount2 = 2000 ether;
+        uint256 user1CollateralBal = collateral.balanceOf(user);
+        uint256 user2CollateralBal = collateral.balanceOf(user2);
+        // User1 buys DOLA
+        vm.startPrank(user);
+        psm.buy(user, amount1);
+        vm.stopPrank();
+
+        // User2 buys DOLA
+        vm.startPrank(user2);
+        collateral.approve(address(psm), type(uint256).max);
+        psm.buy(user2, amount2);
+        vm.stopPrank();
+
+        uint256 buyFee1 = amount1 * psm.depositFeeBps() / 10000; // 0.5% deposit fee
+        uint256 buyFee2 = amount2 * psm.depositFeeBps() / 10000; // 0.5% deposit fee
+        uint256 dolaToSell1 = DOLA.balanceOf(user);
+        uint256 dolaToSell2 = DOLA.balanceOf(user2);
+        // Check balances after both users bought DOLA
+        assertEq(dolaToSell1, amount1 - buyFee1);
+        assertEq(dolaToSell2, amount2 - buyFee2);
+
+        assertEq(collateral.balanceOf(address(gov)), 0); // Gov should have no collateral yet
+        // Simulate profit in vault
+        uint256 profit = 100 ether; // Assume profit of 100 ether
+        collateral.mint(address(vault), 100 ether);
+        // Migrate to new vault
+        MockERC4626 newVault = new MockERC4626(ERC20(address(collateral)), "New Vault", "NEW");
+
+        uint256 vaultBal = vault.balanceOf(address(psm));
+        vm.prank(gov);
+        psm.sweep(IERC20(address(vault))); // Sweep vault balance to gov
+        assertEq(vaultBal, vault.balanceOf(gov));
+
+        vm.prank(gov);
+        psm.migrate(address(newVault));
+        //Block buy and sell(updating controller), users cannot buy or sell while migration is in progress
+        vm.mockCall(address(controller), abi.encodeWithSelector(Controller.isBuyAllowed.selector), abi.encode(false));
+        vm.mockCall(address(controller), abi.encodeWithSelector(Controller.isSellAllowed.selector), abi.encode(false));
+
+        vm.startPrank(gov);
+        vault.redeem(vaultBal / 2, gov, gov); // Redeem half vault balance to PSM
+        vm.warp(block.timestamp + 1 days); // Move time forward to allow migration
+        vault.redeem(vaultBal / 2, gov, gov); // Redeem half vault balance to PSM
+        assertEq(collateral.balanceOf(gov), vaultBal + profit); // Gov should have all collateral balance
+
+        collateral.approve(address(newVault), type(uint256).max);
+        newVault.deposit(vaultBal + profit, address(psm)); // Deposit all collateral to new vault
+        assertEq(newVault.balanceOf(address(psm)), vaultBal + profit, "New vault balance not correct after migration");
+        vm.stopPrank();
+
+        assertEq(psm.getProfit(), profit + buyFee1 + buyFee2); // Kept previous profit
+        assertEq(newVault.previewRedeem(newVault.balanceOf(address(psm))), psm.supply() + psm.getProfit()); // New vault should have the correct balance
+        // Set back controller to allow buy and sell
+        vm.clearMockedCalls();
+
+        // User 1 sells DOLA
+        vm.startPrank(user);
+        DOLA.approve(address(psm), type(uint256).max);
+        psm.sell(user, dolaToSell1);
+        vm.stopPrank();
+        // User 2 sells DOLA
+        vm.startPrank(user2);
+        DOLA.approve(address(psm), type(uint256).max);
+        psm.sell(user2, dolaToSell2);
+        vm.stopPrank();
+        uint256 withdrawFee1 = dolaToSell1 * psm.withdrawFeeBps() / 10000; // 1% withdraw fee
+        uint256 withdrawFee2 = dolaToSell2 * psm.withdrawFeeBps() / 10000; // 1% withdraw fee
+        assertEq(collateral.balanceOf(user), user1CollateralBal - (buyFee1 + withdrawFee1)); // User 1 gets back collateral minus fees
+            // Profit should include fees from both users
+        assertEq(psm.getProfit(), profit + buyFee1 + buyFee2 + withdrawFee1 + withdrawFee2);
+        psm.takeProfit(); // Take profit
+
+        // Check balances after taking profit
+        assertEq(collateral.balanceOf(gov), profit + buyFee1 + buyFee2 + withdrawFee1 + withdrawFee2);
+        assertEq(newVault.previewRedeem(newVault.balanceOf(address(psm))), psm.supply());
+    }
+
     function test_Fail_if_no_DOLA_available() public {
         uint256 dolaBalance = DOLA.balanceOf(address(psm));
         fed.contraction(dolaBalance);

@@ -133,7 +133,7 @@ contract PSM {
     function takeProfit() public {
         uint256 vaultBal = vault.balanceOf(address(this));
         uint256 amountOut = vault.previewRedeem(vaultBal);
-        uint256 profit = amountOut - supply;
+        uint256 profit = amountOut > supply ? amountOut - supply : 0;
         if (profit > 0) {
             vault.withdraw(profit, gov, address(this));
         }
@@ -193,8 +193,10 @@ contract PSM {
         address oldVault = address(vault);
         vault = IERC4626(newVault);
         uint256 collateralBalance = collateral.balanceOf(address(this));
-        collateral.approve(address(vault), collateralBalance);
-        vault.deposit(collateralBalance, address(this));
+        if (collateralBalance != 0) {
+            collateral.approve(address(vault), collateralBalance);
+            vault.deposit(collateralBalance, address(this));
+        }
         emit VaultMigrated(oldVault, newVault);
     }
 
