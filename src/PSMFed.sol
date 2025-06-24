@@ -5,7 +5,7 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 interface IDOLA is IERC20 {
     function mint(address to, uint256 amount) external;
-    function burn(address from, uint256 amount) external;
+    function burn(uint256 amount) external;
 }
 
 contract PSMFed {
@@ -65,7 +65,7 @@ contract PSMFed {
         require(amount > 0, "Amount must be > 0");
         supply -= amount;
         DOLA.transferFrom(psm, address(this), amount);
-        DOLA.burn(address(this), amount);
+        DOLA.burn(amount);
     }
 
     /**

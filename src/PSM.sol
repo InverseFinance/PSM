@@ -152,7 +152,8 @@ contract PSM {
      * @return Total profit in the PSM.
      */
     function getProfit() external view returns (uint256) {
-        return getTotalReserves() - supply;
+        uint256 totalReserves = getTotalReserves();
+        return totalReserves > supply ? totalReserves - supply : 0;
     }
 
     /**
