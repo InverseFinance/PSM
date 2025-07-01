@@ -9,7 +9,8 @@ contract Controller {
      * @return bool Returns true if the buy operation is allowed, false otherwise.
      * For now, it returns true to allow all buy operations.
      */
-    function isBuyAllowed(uint256 amount) external pure returns (bool) {
+    function onBuy(address user, uint256 amount) external returns (bool) {
+        user;
         amount; // To avoid unused variable warning
         return true;
     }
@@ -21,7 +22,8 @@ contract Controller {
      * @return bool Returns true if the sell operation is allowed, false otherwise.
      * For now, it returns true to allow all sell operations.
      */
-    function isSellAllowed(uint256 amount) external pure returns (bool) {
+    function onSell(address user, uint256 amount) external returns (bool) {
+        user;
         amount; // To avoid unused variable warning
         return true; // For now, we allow all calls
     }

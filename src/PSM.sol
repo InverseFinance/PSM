@@ -8,8 +8,8 @@ import "@openzeppelin/contracts/interfaces/IERC4626.sol";
 import {PSMFed} from "src/PSMFed.sol";
 
 interface IController {
-    function isBuyAllowed(uint256 amount) external view returns (bool);
-    function isSellAllowed(uint256 amount) external view returns (bool);
+    function onBuy(address user, uint256 amount) external returns (bool);
+    function onSell(address user, uint256 amount) external returns (bool);
 }
 
 contract PSM {
@@ -38,23 +38,11 @@ contract PSM {
     event Buy(address indexed user, uint256 purchased, uint256 spent);
     event Sell(address indexed user, uint256 sold, uint256 received);
 
-    constructor(
-        address _collateral,
-        address _vault,
-        address _DOLA,
-        address _gov,
-        uint256 _depositFeeBps,
-        uint256 _withdrawFeeBps,
-        address _controller,
-        address _chair
-    ) {
-        require(_depositFeeBps <= BPS_DENOMINATOR && _withdrawFeeBps <= BPS_DENOMINATOR, "Fees too high");
+    constructor(address _collateral, address _vault, address _DOLA, address _gov, address _controller, address _chair) {
         collateral = IERC20(_collateral);
         vault = IERC4626(_vault);
         DOLA = IERC20(_DOLA);
         gov = _gov;
-        depositFeeBps = _depositFeeBps;
-        withdrawFeeBps = _withdrawFeeBps;
         controller = IController(_controller);
         fed = address(new PSMFed(address(this), _gov, _chair, _DOLA));
         DOLA.approve(fed, type(uint256).max);
@@ -67,63 +55,63 @@ contract PSM {
 
     /**
      * @notice Allows to buy DOLA minus fee using collateral.
-     * @param amount Amount of collateral to sell for DOLA.
+     * @param collateralAmountIn Amount of collateral to sell for DOLA.
      */
-    function buy(uint256 amount) external {
-        buy(msg.sender, amount);
+    function buy(uint256 collateralAmountIn) external {
+        buy(msg.sender, collateralAmountIn);
     }
 
     /**
      * @notice Allows to buy DOLA minus fee using collateral.
      * @param to DOLA receiver.
-     * @param amountIn Amount of collateral to sell for DOLA.
+     * @param collateralAmountIn Amount of collateral to sell for DOLA.
      */
-    function buy(address to, uint256 amountIn) public {
-        require(amountIn > 0, "Amount must be > 0");
-        require(controller.isBuyAllowed(amountIn), "Denied by controller");
-        uint256 amountOut = amountIn;
+    function buy(address to, uint256 collateralAmountIn) public {
+        require(collateralAmountIn > 0, "Amount must be > 0");
+        require(controller.onBuy(msg.sender, collateralAmountIn), "Denied by controller");
+        uint256 amountOut = collateralAmountIn;
 
         if (depositFeeBps > 0) {
-            uint256 fee = (amountIn * depositFeeBps) / BPS_DENOMINATOR;
+            uint256 fee = (collateralAmountIn * depositFeeBps) / BPS_DENOMINATOR;
             amountOut -= fee;
         }
         supply += amountOut;
 
-        collateral.safeTransferFrom(msg.sender, address(this), amountIn);
-        collateral.approve(address(vault), amountIn);
-        vault.deposit(amountIn, address(this));
+        collateral.safeTransferFrom(msg.sender, address(this), collateralAmountIn);
+        collateral.approve(address(vault), collateralAmountIn);
+        vault.deposit(collateralAmountIn, address(this));
         DOLA.safeTransfer(to, amountOut);
-        emit Buy(msg.sender, amountIn, amountOut);
+        emit Buy(msg.sender, collateralAmountIn, amountOut);
     }
 
     /**
      * @notice Allows to sell DOLA for collateral minus fee.
-     * @param amount Amount of DOLA to sell.
+     * @param dolaAmountIn Amount of DOLA to sell.
      */
-    function sell(uint256 amount) external {
-        sell(msg.sender, amount);
+    function sell(uint256 dolaAmountIn) external {
+        sell(msg.sender, dolaAmountIn);
     }
 
     /**
      * @notice Allows to sell DOLA for collateral minus fee.
      * @param to Address to receive the collateral.
-     * @param amount Amount of DOLA to sell.
+     * @param dolaAmountIn Amount of DOLA to sell.
      */
-    function sell(address to, uint256 amount) public {
-        require(amount > 0, "Amount must be > 0");
-        require(controller.isSellAllowed(amount), "Denied by controller");
-        supply -= amount;
-        DOLA.safeTransferFrom(msg.sender, address(this), amount);
+    function sell(address to, uint256 dolaAmountIn) public {
+        require(dolaAmountIn > 0, "Amount must be > 0");
+        require(controller.onBuy(msg.sender, dolaAmountIn), "Denied by controller");
+        supply -= dolaAmountIn;
+        DOLA.safeTransferFrom(msg.sender, address(this), dolaAmountIn);
 
-        uint256 amountOut = amount;
+        uint256 amountOut = dolaAmountIn;
 
         if (withdrawFeeBps > 0) {
-            uint256 fee = (amount * withdrawFeeBps) / BPS_DENOMINATOR;
+            uint256 fee = (dolaAmountIn * withdrawFeeBps) / BPS_DENOMINATOR;
             amountOut -= fee;
         }
 
         vault.withdraw(amountOut, to, address(this));
-        emit Sell(msg.sender, amount, amountOut);
+        emit Sell(msg.sender, dolaAmountIn, amountOut);
     }
 
     /**

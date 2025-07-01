@@ -84,7 +84,6 @@ contract PSMFed {
      * @param newChair Address of the new chair.
      */
     function setChair(address newChair) external onlyGov {
-        require(newChair != address(0), "Invalid address");
         address oldChair = chair;
         chair = newChair;
         emit ChairChanged(oldChair, newChair);

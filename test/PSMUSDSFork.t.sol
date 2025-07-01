@@ -33,8 +33,6 @@ contract PSMUSDSTest is Test {
             address(vault),
             address(DOLA),
             gov,
-            50, // 0.5% deposit fee
-            100, // 1% withdraw fee
             address(controller),
             address(this) // chair
         );
@@ -47,6 +45,8 @@ contract PSMUSDSTest is Test {
         vm.startPrank(gov);
         DOLA.addMinter(address(fed)); // Allow PSMFed to mint DOLA
         fed.setSupplyCap(20_000_000 ether); // Set supply cap for DOLA
+        psm.setDepositFeeBps(50); // 0.5% deposit fee
+        psm.setWithdrawFeeBps(100); // 1% withdraw fee
         vm.stopPrank();
         fed.expansion(10_000_000 ether); // Mint some DOLA to PSMFed
     }
@@ -293,8 +293,8 @@ contract PSMUSDSTest is Test {
         vm.prank(gov);
         psm.migrate(address(newVault));
         //Block buy and sell(updating controller), users cannot buy or sell while migration is in progress
-        vm.mockCall(address(controller), abi.encodeWithSelector(Controller.isBuyAllowed.selector), abi.encode(false));
-        vm.mockCall(address(controller), abi.encodeWithSelector(Controller.isSellAllowed.selector), abi.encode(false));
+        vm.mockCall(address(controller), abi.encodeWithSelector(Controller.onBuy.selector), abi.encode(false));
+        vm.mockCall(address(controller), abi.encodeWithSelector(Controller.onSell.selector), abi.encode(false));
         vm.startPrank(gov);
         vault.redeem(vaultBal / 2, gov, gov); // Redeem half vault balance to PSM
         // vm.warp(block.timestamp + 1 days); // Move time forward to allow migration
@@ -407,12 +407,8 @@ contract PSMUSDSTest is Test {
     }
 
     function test_Fail_buy_and_sell_if_denied_by_Controller() public {
-        vm.mockCall(
-            address(psm.controller()), abi.encodeWithSelector(Controller.isBuyAllowed.selector), abi.encode(false)
-        );
-        vm.mockCall(
-            address(psm.controller()), abi.encodeWithSelector(Controller.isSellAllowed.selector), abi.encode(false)
-        );
+        vm.mockCall(address(psm.controller()), abi.encodeWithSelector(Controller.onBuy.selector), abi.encode(false));
+        vm.mockCall(address(psm.controller()), abi.encodeWithSelector(Controller.onSell.selector), abi.encode(false));
         vm.startPrank(user);
         vm.expectRevert("Denied by controller");
         psm.buy(user, 1000 ether);
