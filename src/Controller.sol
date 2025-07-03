@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
+// Warning: Contracts using this template must include require(msg.sender == PSM) for any state-mutating functions. 
+// Omitting this check can introduce vulnerabilities if future controllers forget to enforce it.
 contract Controller {
     /**
      * @notice Checks if a buy operation is allowed.

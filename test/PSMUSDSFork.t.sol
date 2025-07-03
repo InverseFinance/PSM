@@ -45,8 +45,8 @@ contract PSMUSDSTest is Test {
         vm.startPrank(gov);
         DOLA.addMinter(address(fed)); // Allow PSMFed to mint DOLA
         fed.setSupplyCap(20_000_000 ether); // Set supply cap for DOLA
-        psm.setDepositFeeBps(50); // 0.5% deposit fee
-        psm.setWithdrawFeeBps(100); // 1% withdraw fee
+        psm.setBuyFeeBps(50); // 0.5% buy fee
+        psm.setSellFeeBps(100); // 1% sell fee
         vm.stopPrank();
         fed.expansion(10_000_000 ether); // Mint some DOLA to PSMFed
     }
@@ -57,7 +57,7 @@ contract PSMUSDSTest is Test {
         psm.buy(user, amount);
         vm.stopPrank();
 
-        uint256 buyFee = amount * psm.depositFeeBps() / 10000; // 0.5% deposit fee
+        uint256 buyFee = amount * psm.buyFeeBps() / 10000; // 0.5% buy fee
         assertApproxEqAbs(vault.previewRedeem(vault.balanceOf(address(psm))), amount, 2);
         // User should have DOLA bought
         assertEq(DOLA.balanceOf(user), amount - buyFee);
@@ -68,7 +68,7 @@ contract PSMUSDSTest is Test {
         vm.assume(amount > 0.000001 ether && amount <= 10000000 ether);
         vm.startPrank(user);
         psm.buy(amount);
-        uint256 buyFee = amount * psm.depositFeeBps() / 10000; // 0.5% deposit fee
+        uint256 buyFee = amount * psm.buyFeeBps() / 10000; // 0.5% buy fee
         assertEq(DOLA.balanceOf(user), amount - buyFee); // User should have DOLA bought minus fee
         assertApproxEqAbs(vault.previewRedeem(vault.balanceOf(address(psm))), amount, 2); // Vault should have the collateral
     }
@@ -78,14 +78,14 @@ contract PSMUSDSTest is Test {
         uint256 initialCollateralBal = collateral.balanceOf(user);
         vm.startPrank(user);
         psm.buy(amount);
-        uint256 buyFee = amount * psm.depositFeeBps() / 10000; // 0.5% deposit fee
+        uint256 buyFee = amount * psm.buyFeeBps() / 10000; // 0.5% buy fee
         uint256 dolaToSell = DOLA.balanceOf(user);
         assertEq(dolaToSell, amount - buyFee); // User should have D
         DOLA.approve(address(psm), dolaToSell);
         psm.sell(dolaToSell);
         vm.stopPrank();
 
-        uint256 sellFee = dolaToSell * psm.withdrawFeeBps() / 10000; // 1% withdraw fee
+        uint256 sellFee = dolaToSell * psm.sellFeeBps() / 10000; // 1% sell fee
         assertEq(DOLA.balanceOf(user), 0); // User should have no DOLA left
         assertEq(collateral.balanceOf(user), initialCollateralBal - (buyFee + sellFee)); // User gets back collateral minus fees
     }
@@ -99,13 +99,13 @@ contract PSMUSDSTest is Test {
 
         // Now burn All DOLA
         uint256 dolaToSell = DOLA.balanceOf(user);
-        uint256 buyFee = amount * psm.depositFeeBps() / 10000; // 0.5% deposit fee
+        uint256 buyFee = amount * psm.buyFeeBps() / 10000; // 0.5% buy fee
         assertEq(dolaToSell, amount - buyFee); // User should have bought DOLA
         DOLA.approve(address(psm), dolaToSell);
         psm.sell(user, dolaToSell);
         vm.stopPrank();
 
-        uint256 sellFee = dolaToSell * psm.withdrawFeeBps() / 10000; // 1% withdraw fee
+        uint256 sellFee = dolaToSell * psm.sellFeeBps() / 10000; // 1% sell fee
         assertEq(collateral.balanceOf(gov), 0);
         assertEq(collateral.balanceOf(user), initialCollateralBal - (buyFee + sellFee)); // User gets back collateral minus fees
         // Vault should have only fees left
@@ -117,14 +117,14 @@ contract PSMUSDSTest is Test {
 
         vm.startPrank(user);
         psm.buy(user, amount);
-        uint256 buyFee = amount * psm.depositFeeBps() / 10000; // 0.5% deposit fee
+        uint256 buyFee = amount * psm.buyFeeBps() / 10000; // 0.5% buy fee
 
         uint256 dolaToSell = DOLA.balanceOf(user);
         assertEq(dolaToSell, amount - buyFee); // User should have bought DOLA
         DOLA.approve(address(psm), type(uint256).max);
         psm.sell(user, dolaToSell);
 
-        uint256 sellFee = dolaToSell * psm.withdrawFeeBps() / 10000; // 1% withdraw fee
+        uint256 sellFee = dolaToSell * psm.sellFeeBps() / 10000; // 1% sell fee
         assertApproxEqAbs(vault.previewRedeem(vault.balanceOf(address(psm))), buyFee + sellFee, 3); // deposit and withdraw fees
         assertApproxEqAbs(psm.getProfit(), buyFee + sellFee, 3); // No profit taken yet
         // Try to sell more DOLA than available in PSM
@@ -146,12 +146,12 @@ contract PSMUSDSTest is Test {
 
         psm.takeProfit();
 
-        uint256 buyFee = amount * psm.depositFeeBps() / 10000; // 0.5% deposit fee
+        uint256 buyFee = amount * psm.buyFeeBps() / 10000; // 0.5% buy fee
         // Check that profit was taken
         assertApproxEqAbs(collateral.balanceOf(gov), buyFee, 2);
 
         uint256 dolaToSell = DOLA.balanceOf(user);
-        uint256 sellFee = dolaToSell * psm.withdrawFeeBps() / 10000; // 1% withdraw fee
+        uint256 sellFee = dolaToSell * psm.sellFeeBps() / 10000; // 1% sell fee
         // User sells all DOLA
         vm.startPrank(user);
         DOLA.approve(address(psm), type(uint256).max);
@@ -205,8 +205,8 @@ contract PSMUSDSTest is Test {
         psm.buy(user2, amount2);
         vm.stopPrank();
 
-        uint256 buyFee1 = amount1 * psm.depositFeeBps() / 10000; // 0.5% deposit fee
-        uint256 buyFee2 = amount2 * psm.depositFeeBps() / 10000; // 0.5% deposit fee
+        uint256 buyFee1 = amount1 * psm.buyFeeBps() / 10000; // 0.5% buy fee
+        uint256 buyFee2 = amount2 * psm.buyFeeBps() / 10000; // 0.5% buy fee
         uint256 dolaToSell1 = DOLA.balanceOf(user);
         uint256 dolaToSell2 = DOLA.balanceOf(user2);
         // Check balances after both users bought DOLA
@@ -221,7 +221,7 @@ contract PSMUSDSTest is Test {
         vm.prank(gov);
         psm.migrate(address(newVault));
         // After migration, profit and fees should be taken and transferred to governance
-        uint256 fee = (amount1 + amount2) * psm.depositFeeBps() / 10000; // 0.5% deposit fee
+        uint256 fee = (amount1 + amount2) * psm.buyFeeBps() / 10000; // 0.5% buy fee
         assertApproxEqAbs(collateral.balanceOf(gov), fee, 2); // Gov should have profit + deposit fee
 
         // Check new vault has the correct balance
@@ -246,10 +246,10 @@ contract PSMUSDSTest is Test {
 
         // Check both users got their collateral back minus fees
         assertEq(
-            collateral.balanceOf(user), user1CollateralBal - (buyFee1 + dolaToSell1 * psm.withdrawFeeBps() / 10000)
+            collateral.balanceOf(user), user1CollateralBal - (buyFee1 + dolaToSell1 * psm.sellFeeBps() / 10000)
         );
         assertEq(
-            collateral.balanceOf(user2), user2CollateralBal - (buyFee2 + dolaToSell2 * psm.withdrawFeeBps() / 10000)
+            collateral.balanceOf(user2), user2CollateralBal - (buyFee2 + dolaToSell2 * psm.sellFeeBps() / 10000)
         );
     }
 
@@ -272,8 +272,8 @@ contract PSMUSDSTest is Test {
         psm.buy(user2, amount2);
         vm.stopPrank();
 
-        uint256 buyFee1 = amount1 * psm.depositFeeBps() / 10000; // 0.5% deposit fee
-        uint256 buyFee2 = amount2 * psm.depositFeeBps() / 10000; // 0.5% deposit fee
+        uint256 buyFee1 = amount1 * psm.buyFeeBps() / 10000; // 0.5% buy fee
+        uint256 buyFee2 = amount2 * psm.buyFeeBps() / 10000; // 0.5% buy fee
         uint256 dolaToSell1 = DOLA.balanceOf(user);
         uint256 dolaToSell2 = DOLA.balanceOf(user2);
         // Check balances after both users bought DOLA
@@ -321,8 +321,8 @@ contract PSMUSDSTest is Test {
         DOLA.approve(address(psm), type(uint256).max);
         psm.sell(user2, dolaToSell2);
         vm.stopPrank();
-        uint256 withdrawFee1 = dolaToSell1 * psm.withdrawFeeBps() / 10000; // 1% withdraw fee
-        uint256 withdrawFee2 = dolaToSell2 * psm.withdrawFeeBps() / 10000; // 1% withdraw fee
+        uint256 withdrawFee1 = dolaToSell1 * psm.sellFeeBps() / 10000; // 1% sell fee
+        uint256 withdrawFee2 = dolaToSell2 * psm.sellFeeBps() / 10000; // 1% sell fee
         assertApproxEqAbs(collateral.balanceOf(user), user1CollateralBal - (buyFee1 + withdrawFee1), 4); // User 1 gets back collateral minus fees
         // Profit should include fees from both users
         assertApproxEqAbs(psm.getProfit(), buyFee1 + buyFee2 + withdrawFee1 + withdrawFee2, 4);
@@ -345,10 +345,10 @@ contract PSMUSDSTest is Test {
 
     function test_GovCanUpdateFees() public {
         vm.startPrank(gov);
-        psm.setDepositFeeBps(100);
-        assertEq(psm.depositFeeBps(), 100);
-        psm.setWithdrawFeeBps(200);
-        assertEq(psm.withdrawFeeBps(), 200);
+        psm.setBuyFeeBps(100);
+        assertEq(psm.buyFeeBps(), 100);
+        psm.setSellFeeBps(200);
+        assertEq(psm.sellFeeBps(), 200);
     }
 
     function test_GovCanUpdateController() public {
@@ -378,22 +378,22 @@ contract PSMUSDSTest is Test {
     function test_NonGovCannotUpdateFees() public {
         vm.startPrank(user);
         vm.expectRevert("Not gov");
-        psm.setDepositFeeBps(100);
+        psm.setBuyFeeBps(100);
         vm.expectRevert("Not gov");
-        psm.setWithdrawFeeBps(200);
+        psm.setSellFeeBps(200);
     }
 
     function test_Fail_DepositFee_TooHigh() public {
         vm.startPrank(gov);
         vm.expectRevert("Fee too high");
-        psm.setDepositFeeBps(10001); // 100.1%
+        psm.setBuyFeeBps(10001); // 100.1%
         vm.stopPrank();
     }
 
     function test_Fail_WithdrawFee_TooHigh() public {
         vm.startPrank(gov);
         vm.expectRevert("Fee too high");
-        psm.setWithdrawFeeBps(10001); // 100.1%
+        psm.setSellFeeBps(10001); // 100.1%
         vm.stopPrank();
     }
 
@@ -419,13 +419,13 @@ contract PSMUSDSTest is Test {
 
     function test_getCollateralOut(uint256 dolaAmount) public {
         vm.assume(dolaAmount > 0 && dolaAmount <= 10000000 ether);
-        uint256 expectedCollateralOut = dolaAmount - (dolaAmount * psm.withdrawFeeBps() / 10000); // 1% fee
+        uint256 expectedCollateralOut = dolaAmount - (dolaAmount * psm.sellFeeBps() / 10000); // 1% fee
         assertEq(psm.getCollateralOut(dolaAmount), expectedCollateralOut);
     }
 
     function test_getDolaOut(uint256 collateralIn) public {
         vm.assume(collateralIn > 0 && collateralIn <= 10000000 ether);
-        uint256 expectedDolaOut = collateralIn - (collateralIn * psm.depositFeeBps() / 10000); // 0.5% fee
+        uint256 expectedDolaOut = collateralIn - (collateralIn * psm.buyFeeBps() / 10000); // 0.5% fee
         assertEq(psm.getDolaOut(collateralIn), expectedDolaOut);
     }
 
@@ -460,7 +460,7 @@ contract PSMUSDSTest is Test {
         vm.stopPrank();
 
         uint256 profit = psm.getProfit();
-        assertApproxEqAbs(profit, (collateralAmount * psm.depositFeeBps() / 10000), 1); // Profit should equal to fees collected
+        assertApproxEqAbs(profit, (collateralAmount * psm.buyFeeBps() / 10000), 1); // Profit should equal to fees collected
     }
 
     function test_PSMFed_expansion(uint256 expansionAmount) public {

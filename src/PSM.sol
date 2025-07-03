@@ -22,8 +22,8 @@ contract PSM {
     address public gov;
     address public pendingGov;
     IController public controller; // Controller contract address
-    uint256 public depositFeeBps; // e.g., 50 = 0.5%
-    uint256 public withdrawFeeBps; // e.g., 50 = 0.5%
+    uint256 public buyFeeBps; // e.g., 50 = 0.5%
+    uint256 public sellFeeBps; // e.g., 50 = 0.5%
     uint256 public constant BPS_DENOMINATOR = 10_000;
     uint256 public supply; // Collateral supplied in the PSM (excluding fees and profit)
     IERC4626 public vault;
@@ -71,8 +71,8 @@ contract PSM {
         require(controller.onBuy(msg.sender, collateralAmountIn), "Denied by controller");
         uint256 amountOut = collateralAmountIn;
 
-        if (depositFeeBps > 0) {
-            uint256 fee = (collateralAmountIn * depositFeeBps) / BPS_DENOMINATOR;
+        if (buyFeeBps > 0) {
+            uint256 fee = (collateralAmountIn * buyFeeBps) / BPS_DENOMINATOR;
             amountOut -= fee;
         }
         supply += amountOut;
@@ -105,8 +105,8 @@ contract PSM {
 
         uint256 amountOut = dolaAmountIn;
 
-        if (withdrawFeeBps > 0) {
-            uint256 fee = (dolaAmountIn * withdrawFeeBps) / BPS_DENOMINATOR;
+        if (sellFeeBps > 0) {
+            uint256 fee = (dolaAmountIn * sellFeeBps) / BPS_DENOMINATOR;
             amountOut -= fee;
         }
 
@@ -150,7 +150,7 @@ contract PSM {
      * @return Amount of DOLA that will be received after fees.
      */
     function getDolaOut(uint256 collateralIn) external view returns (uint256) {
-        uint256 fee = (collateralIn * depositFeeBps) / BPS_DENOMINATOR;
+        uint256 fee = (collateralIn * buyFeeBps) / BPS_DENOMINATOR;
         return collateralIn - fee;
     }
 
@@ -160,7 +160,7 @@ contract PSM {
      * @return Amount of collateral that will be received after fees.
      */
     function getCollateralOut(uint256 dolaIn) external view returns (uint256) {
-        uint256 fee = (dolaIn * withdrawFeeBps) / BPS_DENOMINATOR;
+        uint256 fee = (dolaIn * sellFeeBps) / BPS_DENOMINATOR;
         return dolaIn - fee;
     }
 
@@ -202,20 +202,20 @@ contract PSM {
      * @notice Allows governance to set the deposit fee.
      * @dev The fee is specified in basis points (bps), where 100 bps = 1%.
      */
-    function setDepositFeeBps(uint256 newFee) external onlyGov {
+    function setBuyFeeBps(uint256 newFee) external onlyGov {
         require(newFee <= BPS_DENOMINATOR, "Fee too high");
-        emit DepositFeeUpdated(depositFeeBps, newFee);
-        depositFeeBps = newFee;
+        emit DepositFeeUpdated(buyFeeBps, newFee);
+        buyFeeBps = newFee;
     }
 
     /**
      * @notice Allows governance to set the withdraw fee.
      * @dev The fee is specified in basis points (bps), where 100 bps = 1%.
      */
-    function setWithdrawFeeBps(uint256 newFee) external onlyGov {
+    function setSellFeeBps(uint256 newFee) external onlyGov {
         require(newFee <= BPS_DENOMINATOR, "Fee too high");
-        emit WithdrawFeeUpdated(withdrawFeeBps, newFee);
-        withdrawFeeBps = newFee;
+        emit WithdrawFeeUpdated(sellFeeBps, newFee);
+        sellFeeBps = newFee;
     }
 
     /**
