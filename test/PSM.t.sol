@@ -275,12 +275,8 @@ contract PSMTest is Test {
         vm.stopPrank();
 
         // Check both users got their collateral back minus fees
-        assertEq(
-            collateral.balanceOf(user), user1CollateralBal - (buyFee1 + dolaToSell1 * psm.sellFeeBps() / 10000)
-        );
-        assertEq(
-            collateral.balanceOf(user2), user2CollateralBal - (buyFee2 + dolaToSell2 * psm.sellFeeBps() / 10000)
-        );
+        assertEq(collateral.balanceOf(user), user1CollateralBal - (buyFee1 + dolaToSell1 * psm.sellFeeBps() / 10000));
+        assertEq(collateral.balanceOf(user2), user2CollateralBal - (buyFee2 + dolaToSell2 * psm.sellFeeBps() / 10000));
     }
 
     function test_migrate_manually_via_gov_if_maxRedeem_lower_than_psm_balance() public {
