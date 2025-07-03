@@ -32,8 +32,8 @@ contract PSM {
     event PendingGovUpdated(address indexed pendingGov);
     event ControllerChanged(address indexed oldController, address indexed newController);
     event VaultMigrated(address indexed oldVault, address indexed newVault);
-    event DepositFeeUpdated(uint256 oldFee, uint256 newFee);
-    event WithdrawFeeUpdated(uint256 oldFee, uint256 newFee);
+    event BuyFeeUpdated(uint256 oldFee, uint256 newFee);
+    event SellFeeUpdated(uint256 oldFee, uint256 newFee);
     event SupplyCapUpdated(uint256 newSupplyCap);
     event Buy(address indexed user, uint256 purchased, uint256 spent);
     event Sell(address indexed user, uint256 sold, uint256 received);
@@ -204,7 +204,7 @@ contract PSM {
      */
     function setBuyFeeBps(uint256 newFee) external onlyGov {
         require(newFee <= BPS_DENOMINATOR, "Fee too high");
-        emit DepositFeeUpdated(buyFeeBps, newFee);
+        emit BuyFeeUpdated(buyFeeBps, newFee);
         buyFeeBps = newFee;
     }
 
@@ -214,7 +214,7 @@ contract PSM {
      */
     function setSellFeeBps(uint256 newFee) external onlyGov {
         require(newFee <= BPS_DENOMINATOR, "Fee too high");
-        emit WithdrawFeeUpdated(sellFeeBps, newFee);
+        emit SellFeeUpdated(sellFeeBps, newFee);
         sellFeeBps = newFee;
     }
 
