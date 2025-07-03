@@ -199,7 +199,7 @@ contract PSM {
     }
 
     /**
-     * @notice Allows governance to set the deposit fee.
+     * @notice Allows governance to set the buy fee.
      * @dev The fee is specified in basis points (bps), where 100 bps = 1%.
      */
     function setBuyFeeBps(uint256 newFee) external onlyGov {
@@ -209,7 +209,7 @@ contract PSM {
     }
 
     /**
-     * @notice Allows governance to set the withdraw fee.
+     * @notice Allows governance to set the sell fee.
      * @dev The fee is specified in basis points (bps), where 100 bps = 1%.
      */
     function setSellFeeBps(uint256 newFee) external onlyGov {

@@ -135,7 +135,7 @@ contract PSMTest is Test {
         assertEq(collateral.balanceOf(gov), 0);
         assertEq(collateral.balanceOf(user), initialCollateralBal - (buyFee + sellFee)); // User gets back collateral minus fees
         // Vault should have only fees left
-        assertEq(collateral.balanceOf(address(vault)), buyFee + sellFee); // deposit and withdraw fees
+        assertEq(collateral.balanceOf(address(vault)), buyFee + sellFee); // buy and sell fees
     }
 
     function test_SellDolaExceedSupply(uint256 amount) public {
@@ -151,7 +151,7 @@ contract PSMTest is Test {
         psm.sell(user, dolaToSell);
 
         uint256 sellFee = dolaToSell * psm.sellFeeBps() / 10000; // 1% sell fee
-        assertEq(collateral.balanceOf(address(vault)), buyFee + sellFee); // deposit and withdraw fees
+        assertEq(collateral.balanceOf(address(vault)), buyFee + sellFee); // buy and sell fees
         assertEq(psm.getProfit(), buyFee + sellFee); // No profit taken yet
 
         // Try to sell more DOLA than available in PSM
@@ -211,7 +211,7 @@ contract PSMTest is Test {
         vm.prank(gov);
         psm.migrate(address(newVault));
         assertEq(address(psm.vault()), address(newVault));
-        // Profit was taken and transferred to governance plus the deposit fee
+        // Profit was taken and transferred to governance plus the buy fee
         assertEq(collateral.balanceOf(gov), profit + fee, "Not correct profit and fees to gov");
         // Check new vault has the correct balance
         assertEq(newVault.balanceOf(address(psm)), amount - fee, "Not correct vault balance after migration");
@@ -254,7 +254,7 @@ contract PSMTest is Test {
         psm.migrate(address(newVault));
         // After migration, profit and fees should be taken and transferred to governance
         uint256 fee = (amount1 + amount2) * psm.buyFeeBps() / 10000; // 0.5% buy fee
-        assertEq(collateral.balanceOf(gov), profit + fee); // Gov should have profit + deposit fee
+        assertEq(collateral.balanceOf(gov), profit + fee); // Gov should have profit + buy fee
 
         // Check new vault has the correct balance
         assertEq(newVault.balanceOf(address(psm)), amount1 + amount2 - fee, "Vault balance not correct after migration");
@@ -350,15 +350,15 @@ contract PSMTest is Test {
         DOLA.approve(address(psm), type(uint256).max);
         psm.sell(user2, dolaToSell2);
         vm.stopPrank();
-        uint256 withdrawFee1 = dolaToSell1 * psm.sellFeeBps() / 10000; // 1% sell fee
-        uint256 withdrawFee2 = dolaToSell2 * psm.sellFeeBps() / 10000; // 1% sell fee
-        assertEq(collateral.balanceOf(user), user1CollateralBal - (buyFee1 + withdrawFee1)); // User 1 gets back collateral minus fees
+        uint256 sellFee1 = dolaToSell1 * psm.sellFeeBps() / 10000; // 1% sell fee
+        uint256 sellFee2 = dolaToSell2 * psm.sellFeeBps() / 10000; // 1% sell fee
+        assertEq(collateral.balanceOf(user), user1CollateralBal - (buyFee1 + sellFee1)); // User 1 gets back collateral minus fees
             // Profit should include fees from both users
-        assertEq(psm.getProfit(), profit + buyFee1 + buyFee2 + withdrawFee1 + withdrawFee2);
+        assertEq(psm.getProfit(), profit + buyFee1 + buyFee2 + sellFee1 + sellFee2);
         psm.takeProfit(); // Take profit
 
         // Check balances after taking profit
-        assertEq(collateral.balanceOf(gov), profit + buyFee1 + buyFee2 + withdrawFee1 + withdrawFee2);
+        assertEq(collateral.balanceOf(gov), profit + buyFee1 + buyFee2 + sellFee1 + sellFee2);
         assertEq(newVault.previewRedeem(newVault.balanceOf(address(psm))), psm.supply());
     }
 
@@ -412,14 +412,14 @@ contract PSMTest is Test {
         psm.setSellFeeBps(200);
     }
 
-    function test_Fail_DepositFee_TooHigh() public {
+    function test_Fail_BuyFee_TooHigh() public {
         vm.startPrank(gov);
         vm.expectRevert("Fee too high");
         psm.setBuyFeeBps(10001); // 100.1%
         vm.stopPrank();
     }
 
-    function test_Fail_WithdrawFee_TooHigh() public {
+    function test_Fail_SellFee_TooHigh() public {
         vm.startPrank(gov);
         vm.expectRevert("Fee too high");
         psm.setSellFeeBps(10001); // 100.1%
