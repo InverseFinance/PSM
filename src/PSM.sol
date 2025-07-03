@@ -168,8 +168,9 @@ contract PSM {
      * @notice Migrate the vault to a new IERC4626 vault.
      * @dev Can only be called by governance and will take profit before migration.
      * @param newVault Address of the new vault to migrate to.
+     * @param minCollateralAmount Minimum amount of collateral to be deposited in the new vault.
      */
-    function migrate(address newVault) external onlyGov {
+    function migrate(address newVault, uint256 minCollateralAmount) external onlyGov {
         require(newVault != address(0), "Zero address");
         require(IERC4626(newVault).asset() == address(collateral), "New vault must accept collateral");
 
@@ -182,7 +183,7 @@ contract PSM {
         address oldVault = address(vault);
         vault = IERC4626(newVault);
         uint256 collateralBalance = collateral.balanceOf(address(this));
-        if (collateralBalance != 0) {
+        if (collateralBalance >= minCollateralAmount) {
             collateral.approve(address(vault), collateralBalance);
             vault.deposit(collateralBalance, address(this));
         }

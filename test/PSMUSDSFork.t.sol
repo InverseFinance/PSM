@@ -175,8 +175,9 @@ contract PSMUSDSTest is Test {
         uint256 fee = test_BuyDOLAWithFee(amount);
 
         MockERC4626 newVault = new MockERC4626(ERC20(address(collateral)), "New Vault", "NEW");
-        vm.prank(gov);
-        psm.migrate(address(newVault));
+        uint256 minCollateralAmount = vault.previewRedeem(vault.balanceOf(address(psm)));
+        vm.startPrank(gov);
+        psm.migrate(address(newVault), minCollateralAmount / 2);
         assertEq(address(psm.vault()), address(newVault));
         // Profit was taken and transferred to governance plus the buy fee
         assertApproxEqAbs(collateral.balanceOf(gov), fee, 2, "Not correct profit and fees to gov");
@@ -218,8 +219,9 @@ contract PSMUSDSTest is Test {
         deal(address(collateral), address(vault), 100000 ether); // Simulate profit in vault
         // Migrate to new vault
         MockERC4626 newVault = new MockERC4626(ERC20(address(collateral)), "New Vault", "NEW");
+        uint256 minCollateralAmount = vault.previewRedeem(vault.balanceOf(address(psm)));
         vm.prank(gov);
-        psm.migrate(address(newVault));
+        psm.migrate(address(newVault), minCollateralAmount / 2);
         // After migration, profit and fees should be taken and transferred to governance
         uint256 fee = (amount1 + amount2) * psm.buyFeeBps() / 10000; // 0.5% buy fee
         assertApproxEqAbs(collateral.balanceOf(gov), fee, 2); // Gov should have profit + buy fee
@@ -286,8 +288,9 @@ contract PSMUSDSTest is Test {
         psm.sweep(IERC20(address(vault))); // Sweep vault balance to gov
         assertEq(vaultBal, vault.balanceOf(gov));
 
+        uint256 minCollateralAmount = vault.previewRedeem(vaultBal);
         vm.prank(gov);
-        psm.migrate(address(newVault));
+        psm.migrate(address(newVault), minCollateralAmount);
         //Block buy and sell(updating controller), users cannot buy or sell while migration is in progress
         vm.mockCall(address(controller), abi.encodeWithSelector(Controller.onBuy.selector), abi.encode(false));
         vm.mockCall(address(controller), abi.encodeWithSelector(Controller.onSell.selector), abi.encode(false));
