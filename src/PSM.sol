@@ -183,7 +183,8 @@ contract PSM {
         address oldVault = address(vault);
         vault = IERC4626(newVault);
         uint256 collateralBalance = collateral.balanceOf(address(this));
-        if (collateralBalance >= minCollateralAmount) {
+        require(collateralBalance >= minCollateralAmount, "Insufficient collateral balance for migration");
+        if (collateralBalance > 0) {
             collateral.approve(address(vault), collateralBalance);
             vault.deposit(collateralBalance, address(this));
         }

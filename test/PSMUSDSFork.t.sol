@@ -187,6 +187,18 @@ contract PSMUSDSTest is Test {
         );
     }
 
+    function test_Fail_Migrate_Vault_if_below_minCollateralOut(uint256 amount) public {
+        vm.assume(amount > 0.000001 ether && amount <= 10000000 ether);
+        test_BuyDOLAWithFee(amount);
+        uint256 minCollateralAmount = vault.previewRedeem(vault.balanceOf(address(psm)));
+
+        MockERC4626 newVault = new MockERC4626(ERC20(address(collateral)), "New Vault", "NEW");
+
+        vm.prank(gov);
+        vm.expectRevert("Insufficient collateral balance for migration");
+        psm.migrate(address(newVault), minCollateralAmount * 2); // Try to migrate with less than minCollateralAmount
+    }
+
     function test_2_users_buy_then_migrate_with_profit_then_contract_and_sell() public {
         address user2 = address(0x456);
         deal(address(collateral), address(user2), 5000 ether); // Give user2 some collateral
@@ -290,7 +302,7 @@ contract PSMUSDSTest is Test {
 
         uint256 minCollateralAmount = vault.previewRedeem(vaultBal);
         vm.prank(gov);
-        psm.migrate(address(newVault), minCollateralAmount);
+        psm.migrate(address(newVault), 0);
         //Block buy and sell(updating controller), users cannot buy or sell while migration is in progress
         vm.mockCall(address(controller), abi.encodeWithSelector(Controller.onBuy.selector), abi.encode(false));
         vm.mockCall(address(controller), abi.encodeWithSelector(Controller.onSell.selector), abi.encode(false));
