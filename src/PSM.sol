@@ -99,7 +99,7 @@ contract PSM {
      */
     function sell(address to, uint256 dolaAmountIn) public {
         require(dolaAmountIn > 0, "Amount must be > 0");
-        require(controller.onBuy(msg.sender, dolaAmountIn), "Denied by controller");
+        require(controller.onSell(msg.sender, dolaAmountIn), "Denied by controller");
         supply -= dolaAmountIn;
         DOLA.safeTransferFrom(msg.sender, address(this), dolaAmountIn);
 
