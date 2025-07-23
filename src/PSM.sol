@@ -38,7 +38,7 @@ contract PSM {
     event Buy(address indexed user, uint256 purchased, uint256 spent);
     event Sell(address indexed user, uint256 sold, uint256 received);
     event ProfitTaken(uint256 profit);
-    
+
     constructor(address _collateral, address _vault, address _DOLA, address _gov, address _controller, address _chair) {
         collateral = IERC20(_collateral);
         vault = IERC4626(_vault);
