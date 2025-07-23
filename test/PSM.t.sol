@@ -55,6 +55,7 @@ contract PSMTest is Test {
     address gov = address(0xfee);
     address operator = address(this);
     address user = address(0x123);
+    address user2 = address(0x456);
 
     function setUp() public {
         collateral = new MockERC20();
@@ -210,9 +211,9 @@ contract PSMTest is Test {
         collateral.mint(address(vault), profit); // Add profit to vault
 
         MockERC4626 newVault = new MockERC4626(ERC20(address(collateral)), "New Vault", "NEW");
-
+        uint256 minSharesOut = newVault.previewDeposit(minCollateralAmount);
         vm.startPrank(gov);
-        psm.migrate(address(newVault), minCollateralAmount * 995 / 1000); // take into account fees which will be taken in profit
+        psm.migrate(address(newVault), minCollateralAmount * 995 / 1000, minSharesOut * 995 / 1000); // take into account fees which will be taken in profit
         assertEq(address(psm.vault()), address(newVault));
         // Profit was taken and transferred to governance plus the buy fee
         assertEq(collateral.balanceOf(gov), profit + fee, "Not correct profit and fees to gov");
@@ -224,16 +225,28 @@ contract PSMTest is Test {
         vm.assume(amount > 0.000001 ether && amount <= 10000000 ether);
         test_BuyDOLAWithFee(amount);
         uint256 minCollateralAmount = vault.previewRedeem(vault.balanceOf(address(psm)));
-
+        uint256 minSharesOut = vault.previewDeposit(minCollateralAmount);
         MockERC4626 newVault = new MockERC4626(ERC20(address(collateral)), "New Vault", "NEW");
 
         vm.prank(gov);
         vm.expectRevert("Insufficient collateral balance for migration");
-        psm.migrate(address(newVault), minCollateralAmount * 2);
+        psm.migrate(address(newVault), minCollateralAmount * 2, minSharesOut);
+    }
+
+    function test_Fail_Migrate_Vault_if_below_minSharesOut(uint256 amount) public {
+        vm.assume(amount > 0.000001 ether && amount <= 10000000 ether);
+        test_BuyDOLAWithFee(amount);
+        uint256 minCollateralAmount = vault.previewRedeem(vault.balanceOf(address(psm)));
+        uint256 minSharesOut = vault.previewDeposit(minCollateralAmount);
+        MockERC4626 newVault = new MockERC4626(ERC20(address(collateral)), "New Vault", "NEW");
+
+        vm.prank(gov);
+        vm.expectRevert("Insufficient shares received from new vault");
+        psm.migrate(address(newVault), minCollateralAmount/2, minSharesOut + 1); // Requesting more shares than possible
     }
 
     function test_2_users_buy_then_migrate_with_profit_then_contract_and_sell() public {
-        address user2 = address(0x456);
+       
         collateral.mint(user2, 5000 ether); // Give user2 some collateral
 
         uint256 amount1 = 1000 ether;
@@ -266,8 +279,10 @@ contract PSMTest is Test {
         // Migrate to new vault
         MockERC4626 newVault = new MockERC4626(ERC20(address(collateral)), "New Vault", "NEW");
         uint256 minCollateralAmount = vault.previewRedeem(vault.balanceOf(address(psm)));
-        vm.prank(gov);
-        psm.migrate(address(newVault), minCollateralAmount / 2);
+        
+        vm.startPrank(gov);
+        psm.migrate(address(newVault), minCollateralAmount / 2, newVault.previewDeposit(minCollateralAmount)/2);
+        vm.stopPrank();
         // After migration, profit and fees should be taken and transferred to governance
         uint256 fee = (amount1 + amount2) * psm.buyFeeBps() / 10000; // 0.5% buy fee
         assertEq(collateral.balanceOf(gov), profit + fee); // Gov should have profit + buy fee
@@ -276,7 +291,6 @@ contract PSMTest is Test {
         assertEq(newVault.balanceOf(address(psm)), amount1 + amount2 - fee, "Vault balance not correct after migration");
 
         // Full contraction but can still sell DOLA
-        vm.prank(gov);
         fed.contraction(DOLA.balanceOf(address(psm)));
 
         // User 1 sells DOLA
@@ -336,7 +350,7 @@ contract PSMTest is Test {
         uint256 minCollateralAmount = vault.previewRedeem(vaultBal);
         vm.prank(gov);
         // Won't deposit in the new vault, just migrate because minCollateralAmount is lower than PSM balance
-        psm.migrate(address(newVault), 0);
+        psm.migrate(address(newVault), 0, 0);
         //Block buy and sell(updating controller), users cannot buy or sell while migration is in progress
         vm.mockCall(address(controller), abi.encodeWithSelector(Controller.onBuy.selector), abi.encode(false));
         vm.mockCall(address(controller), abi.encodeWithSelector(Controller.onSell.selector), abi.encode(false));

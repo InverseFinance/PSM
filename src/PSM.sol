@@ -37,7 +37,8 @@ contract PSM {
     event SupplyCapUpdated(uint256 newSupplyCap);
     event Buy(address indexed user, uint256 purchased, uint256 spent);
     event Sell(address indexed user, uint256 sold, uint256 received);
-
+    event ProfitTaken(uint256 profit);
+    
     constructor(address _collateral, address _vault, address _DOLA, address _gov, address _controller, address _chair) {
         collateral = IERC20(_collateral);
         vault = IERC4626(_vault);
@@ -81,7 +82,7 @@ contract PSM {
         collateral.approve(address(vault), collateralAmountIn);
         vault.deposit(collateralAmountIn, address(this));
         DOLA.safeTransfer(to, amountOut);
-        emit Buy(msg.sender, collateralAmountIn, amountOut);
+        emit Buy(msg.sender, amountOut, collateralAmountIn);
     }
 
     /**
@@ -119,12 +120,11 @@ contract PSM {
      * @dev Can be called by anyone to transfer profits and fees to governance.
      */
     function takeProfit() public {
-        uint256 vaultBal = vault.balanceOf(address(this));
-        uint256 amountOut = vault.previewRedeem(vaultBal);
-        uint256 profit = amountOut > supply ? amountOut - supply : 0;
+        uint256 profit = getProfit();
         if (profit > 0) {
             vault.withdraw(profit, gov, address(this));
         }
+        emit ProfitTaken(profit);
     }
 
     /**
@@ -139,7 +139,7 @@ contract PSM {
      * @notice Returns the total profit made by the PSM.
      * @return Total profit in the PSM.
      */
-    function getProfit() external view returns (uint256) {
+    function getProfit() public view returns (uint256) {
         uint256 totalReserves = getTotalReserves();
         return totalReserves > supply ? totalReserves - supply : 0;
     }
@@ -169,8 +169,9 @@ contract PSM {
      * @dev Can only be called by governance and will take profit before migration.
      * @param newVault Address of the new vault to migrate to.
      * @param minCollateralAmount Minimum amount of collateral to be deposited in the new vault.
+     * @param minSharesOut Minimum amount of shares to receive from the new vault.
      */
-    function migrate(address newVault, uint256 minCollateralAmount) external onlyGov {
+    function migrate(address newVault, uint256 minCollateralAmount, uint256 minSharesOut) external onlyGov {
         require(newVault != address(0), "Zero address");
         require(IERC4626(newVault).asset() == address(collateral), "New vault must accept collateral");
 
@@ -186,7 +187,8 @@ contract PSM {
         require(collateralBalance >= minCollateralAmount, "Insufficient collateral balance for migration");
         if (collateralBalance > 0) {
             collateral.approve(address(vault), collateralBalance);
-            vault.deposit(collateralBalance, address(this));
+            uint256 sharesOut = vault.deposit(collateralBalance, address(this));
+            require(sharesOut >= minSharesOut, "Insufficient shares received from new vault");
         }
         emit VaultMigrated(oldVault, newVault);
     }
