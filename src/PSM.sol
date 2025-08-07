@@ -8,8 +8,8 @@ import "@openzeppelin/contracts/interfaces/IERC4626.sol";
 import {PSMFed} from "src/PSMFed.sol";
 
 interface IController {
-    function onBuy(address user, uint256 amount) external returns (bool);
-    function onSell(address user, uint256 amount) external returns (bool);
+    function onBuy(address user, address to, uint256 amount) external returns (bool);
+    function onSell(address user, address to, uint256 amount) external returns (bool);
 }
 
 contract PSM {
@@ -27,6 +27,7 @@ contract PSM {
     uint256 public constant BPS_DENOMINATOR = 10_000;
     uint256 public supply; // Collateral supplied in the PSM (excluding fees and profit)
     IERC4626 public vault;
+    uint256 public minTotalSupply;
 
     event GovChanged(address indexed oldGov, address indexed newGov);
     event PendingGovUpdated(address indexed pendingGov);
@@ -38,6 +39,7 @@ contract PSM {
     event Buy(address indexed user, uint256 purchased, uint256 spent);
     event Sell(address indexed user, uint256 sold, uint256 received);
     event ProfitTaken(uint256 profit);
+    event MinTotalSupplyUpdated(uint256 oldMinTotalSupply, uint256 newMinTotalSupply);
 
     constructor(address _collateral, address _vault, address _DOLA, address _gov, address _controller, address _chair) {
         collateral = IERC20(_collateral);
@@ -69,7 +71,8 @@ contract PSM {
      */
     function buy(address to, uint256 collateralAmountIn) public {
         require(collateralAmountIn > 0, "Amount must be > 0");
-        require(controller.onBuy(msg.sender, collateralAmountIn), "Denied by controller");
+        require(vault.totalSupply() >= minTotalSupply, "Min total supply not met");
+        require(controller.onBuy(msg.sender, to, collateralAmountIn), "Denied by controller");
         uint256 amountOut = collateralAmountIn;
 
         if (buyFeeBps > 0) {
@@ -80,7 +83,8 @@ contract PSM {
 
         collateral.safeTransferFrom(msg.sender, address(this), collateralAmountIn);
         collateral.approve(address(vault), collateralAmountIn);
-        vault.deposit(collateralAmountIn, address(this));
+        uint256 shares = vault.deposit(collateralAmountIn, address(this));
+        require(shares > 0, "Deposit failed");
         DOLA.safeTransfer(to, amountOut);
         emit Buy(msg.sender, amountOut, collateralAmountIn);
     }
@@ -100,7 +104,7 @@ contract PSM {
      */
     function sell(address to, uint256 dolaAmountIn) public {
         require(dolaAmountIn > 0, "Amount must be > 0");
-        require(controller.onSell(msg.sender, dolaAmountIn), "Denied by controller");
+        require(controller.onSell(msg.sender, to, dolaAmountIn), "Denied by controller");
         supply -= dolaAmountIn;
         DOLA.safeTransferFrom(msg.sender, address(this), dolaAmountIn);
 
@@ -222,6 +226,17 @@ contract PSM {
         sellFeeBps = newFee;
     }
 
+    /**
+     * @notice Allows governance to set the minimum vault total supply.
+     * @dev This is used to ensure that the vault has enough shares before allowing buy operations.
+     * @param _minTotalSupply Minimum total supply that must have been already minted in the vault.
+     */
+    function setMinTotalSupply(uint256 _minTotalSupply) external onlyGov {
+        require(_minTotalSupply > 0, "Min total supply must be > 0");
+        emit MinTotalSupplyUpdated(minTotalSupply, _minTotalSupply);
+        minTotalSupply = _minTotalSupply;
+    }
+    
     /**
      * @notice Allows governance to set a new pending governance.
      * @dev The pending governance must accept the role.
