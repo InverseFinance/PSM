@@ -62,7 +62,7 @@ contract SupplyTest is Test {
         collateral = new MockERC20();
         vault = new MockERC4626(ERC20(address(collateral)), "MOCK", "MOCK");
         DOLA = new MockERC20();
-        
+
         collateral.mint(attacker, 10_000_000_001 ether);
         vm.startPrank(attacker);
         collateral.approve(address(vault), type(uint256).max);
@@ -77,7 +77,7 @@ contract SupplyTest is Test {
     function test_totalSupply() public {
         vm.prank(attacker);
         collateral.transfer(address(vault), 10_000_000_000 ether);
-        assertEq(vault.totalSupply(), initialSupply);  
+        assertEq(vault.totalSupply(), initialSupply);
         vm.prank(user);
         vault.deposit(10_000_000 ether, user);
         console.log("Vault total supply after user deposit:", vault.totalSupply());
@@ -86,16 +86,14 @@ contract SupplyTest is Test {
         vm.startPrank(attacker);
         vault.redeem(vault.balanceOf(attacker), attacker, attacker);
         console2.log("Attacker balance after redeem:", collateral.balanceOf(attacker));
-        console2.log("Attacker balance after redeem:", collateral.balanceOf(attacker)/1e18);
+        console2.log("Attacker balance after redeem:", collateral.balanceOf(attacker) / 1e18);
 
         vm.stopPrank();
         vm.startPrank(user);
         vault.redeem(vault.balanceOf(user), user, user);
         console2.log("User balance after redeem:", collateral.balanceOf(user));
-        console2.log("User balance after redeem:", collateral.balanceOf(user)/1e18);
+        console2.log("User balance after redeem:", collateral.balanceOf(user) / 1e18);
         // 0.000000000000000001% is the precision for the assertApproxEqRel
         assertApproxEqRel(collateral.balanceOf(user), 10_000_000 ether, 0.000000000000000001 ether);
     }
-    
-   
 }

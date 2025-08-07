@@ -78,9 +78,9 @@ contract PSMTest is Test {
         psm.setMinTotalSupply(100_000 ether); // Set minimum shares minted to 100k
         vm.stopPrank();
         fed.expansion(10_000_000 ether); // Mint some DOLA to PSMFed
-        
+
         // Mint minTotalSupply vault shares
-        
+
         vm.startPrank(firstDepositor);
         collateral.mint(firstDepositor, 100_001 ether);
         collateral.approve(address(vault), type(uint256).max);
@@ -183,6 +183,7 @@ contract PSMTest is Test {
         psm.buy(user, amount);
         vm.stopPrank();
     }
+
     function test_TakeProfit(uint256 amount) public {
         vm.assume(amount > 0.000001 ether && amount <= 10000000 ether);
 
@@ -212,7 +213,12 @@ contract PSMTest is Test {
         psm.sell(user, dolaToSell); // User sells DOLA
         vm.stopPrank();
         assertEq(psm.supply(), 0); // Supply should be zero after selling all DOLA
-        assertApproxEqAbs(collateral.balanceOf(user), initialCollateralBal - (buyFee + sellFee), 2, "Not correct collateral balance for user"); // User gets back collateral minus fees
+        assertApproxEqAbs(
+            collateral.balanceOf(user),
+            initialCollateralBal - (buyFee + sellFee),
+            2,
+            "Not correct collateral balance for user"
+        ); // User gets back collateral minus fees
         assertEq(DOLA.balanceOf(user), 0); // User should have no DOLA left
 
         // Gov balance has profit + buyFee
@@ -242,7 +248,9 @@ contract PSMTest is Test {
         // Profit was taken and transferred to governance plus the buy fee
         assertEq(collateral.balanceOf(gov), psmProfit + fee, "Not correct profit and fees to gov");
         // Check new vault has the correct balance
-        assertApproxEqAbs(newVault.balanceOf(address(psm)), amount - fee, 1, "Not correct vault balance after migration");
+        assertApproxEqAbs(
+            newVault.balanceOf(address(psm)), amount - fee, 1, "Not correct vault balance after migration"
+        );
     }
 
     function test_Fail_Migrate_Vault_if_below_minCollateralOut(uint256 amount) public {
@@ -299,7 +307,7 @@ contract PSMTest is Test {
         // Simulate profit in vault
         // Assume profit of 100 ether
         collateral.mint(address(vault), 100 ether);
-        uint256 psmProfit = vault.previewRedeem(vault.balanceOf(address(psm))) - amount1 -amount2; // Profit for the PSM in the vault
+        uint256 psmProfit = vault.previewRedeem(vault.balanceOf(address(psm))) - amount1 - amount2; // Profit for the PSM in the vault
         // Migrate to new vault
         MockERC4626 newVault = new MockERC4626(ERC20(address(collateral)), "New Vault", "NEW");
         uint256 minCollateralAmount = vault.previewRedeem(vault.balanceOf(address(psm)));
@@ -388,7 +396,9 @@ contract PSMTest is Test {
 
         collateral.approve(address(newVault), type(uint256).max);
         newVault.deposit(vaultBal + psmProfit, address(psm)); // Deposit all collateral to new vault
-        assertEq(newVault.balanceOf(address(psm)), vaultBal + psmProfit, "New vault balance not correct after migration");
+        assertEq(
+            newVault.balanceOf(address(psm)), vaultBal + psmProfit, "New vault balance not correct after migration"
+        );
         vm.stopPrank();
 
         assertEq(psm.getProfit(), psmProfit + buyFee1 + buyFee2); // Kept previous profit
@@ -537,7 +547,7 @@ contract PSMTest is Test {
         // Simulate profit in vault
         uint256 profit = 200 ether; // Assume profit of 200 ether
         collateral.mint(address(vault), profit); // Add profit to vault
-        
+
         uint256 psmProfit = vault.previewRedeem(vault.balanceOf(address(psm))) - collateralAmount; // Profit in PSM
 
         uint256 totalReserves = psm.getTotalReserves();
@@ -599,7 +609,7 @@ contract PSMTest is Test {
 
         fed.contraction(currentSupply - newSupplyCap); // Should allow contraction to meet new cap
     }
-    
+
     function test_PSMFed_setChair(address newChair) public {
         vm.assume(newChair != address(0));
 

@@ -236,7 +236,7 @@ contract PSM {
         emit MinTotalSupplyUpdated(minTotalSupply, _minTotalSupply);
         minTotalSupply = _minTotalSupply;
     }
-    
+
     /**
      * @notice Allows governance to set a new pending governance.
      * @dev The pending governance must accept the role.
