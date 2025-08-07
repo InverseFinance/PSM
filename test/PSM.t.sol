@@ -241,6 +241,9 @@ contract PSMTest is Test {
         uint256 psmProfit = vault.previewRedeem(vault.balanceOf(address(psm))) - amount; // Profit in PSM
 
         MockERC4626 newVault = new MockERC4626(ERC20(address(collateral)), "New Vault", "NEW");
+        // Ensure minTotalSupply is met
+        _seedMinTotalSupply(newVault);
+
         uint256 minSharesOut = newVault.previewDeposit(minCollateralAmount);
         vm.startPrank(gov);
         psm.migrate(address(newVault), minCollateralAmount * 994 / 1000, minSharesOut * 994 / 1000); // take into account fees which will be taken in profit
@@ -259,10 +262,24 @@ contract PSMTest is Test {
         uint256 minCollateralAmount = vault.previewRedeem(vault.balanceOf(address(psm)));
         uint256 minSharesOut = vault.previewDeposit(minCollateralAmount);
         MockERC4626 newVault = new MockERC4626(ERC20(address(collateral)), "New Vault", "NEW");
+        // Ensure minTotalSupply is met
+        _seedMinTotalSupply(newVault);
 
         vm.prank(gov);
         vm.expectRevert("Insufficient collateral balance for migration");
         psm.migrate(address(newVault), minCollateralAmount * 2, minSharesOut);
+    }
+
+    function test_Fail_Migrate_if_minTotalSupply_not_met(uint256 amount) public {
+        vm.assume(amount > 0.000001 ether && amount <= 10000000 ether);
+        test_BuyDOLAWithFee(amount);
+        uint256 minCollateralAmount = vault.previewRedeem(vault.balanceOf(address(psm)));
+        uint256 minSharesOut = vault.previewDeposit(minCollateralAmount);
+        MockERC4626 newVault = new MockERC4626(ERC20(address(collateral)), "New Vault", "NEW");
+
+        vm.prank(gov);
+        vm.expectRevert("New vault does not meet min total supply");
+        psm.migrate(address(newVault), minCollateralAmount, minSharesOut);
     }
 
     function test_Fail_Migrate_Vault_if_below_minSharesOut(uint256 amount) public {
@@ -271,6 +288,8 @@ contract PSMTest is Test {
         uint256 minCollateralAmount = vault.previewRedeem(vault.balanceOf(address(psm)));
         uint256 minSharesOut = vault.previewDeposit(minCollateralAmount);
         MockERC4626 newVault = new MockERC4626(ERC20(address(collateral)), "New Vault", "NEW");
+        // Ensure minTotalSupply is met
+        _seedMinTotalSupply(newVault);
 
         vm.prank(gov);
         vm.expectRevert("Insufficient shares received from new vault");
@@ -310,8 +329,10 @@ contract PSMTest is Test {
         uint256 psmProfit = vault.previewRedeem(vault.balanceOf(address(psm))) - amount1 - amount2; // Profit for the PSM in the vault
         // Migrate to new vault
         MockERC4626 newVault = new MockERC4626(ERC20(address(collateral)), "New Vault", "NEW");
-        uint256 minCollateralAmount = vault.previewRedeem(vault.balanceOf(address(psm)));
+        // Ensure minTotalSupply is met
+        _seedMinTotalSupply(newVault);
 
+        uint256 minCollateralAmount = vault.previewRedeem(vault.balanceOf(address(psm)));
         vm.startPrank(gov);
         psm.migrate(address(newVault), minCollateralAmount / 2, newVault.previewDeposit(minCollateralAmount) / 2);
         vm.stopPrank();
@@ -342,7 +363,6 @@ contract PSMTest is Test {
     }
 
     function test_migrate_manually_via_gov_if_maxRedeem_lower_than_psm_balance() public {
-        address user2 = address(0x456);
         collateral.mint(user2, 5000 ether); // Give user2 some collateral
 
         uint256 amount1 = 1000 ether;
@@ -375,6 +395,8 @@ contract PSMTest is Test {
         uint256 psmProfit = vault.previewRedeem(vault.balanceOf(address(psm))) - amount1 - amount2; // Profit for the PSM in the vault
         // Migrate to new vault
         MockERC4626 newVault = new MockERC4626(ERC20(address(collateral)), "New Vault", "NEW");
+        // Ensure minTotalSupply is met
+        _seedMinTotalSupply(newVault);
 
         uint256 vaultBal = vault.balanceOf(address(psm));
         vm.prank(gov);
@@ -626,5 +648,14 @@ contract PSMTest is Test {
         fed.resign();
 
         assertEq(fed.chair(), address(0));
+    }
+
+    function _seedMinTotalSupply(MockERC4626 vault) internal {
+        // Ensure minTotalSupply is met
+        collateral.mint(firstDepositor, 100_001 ether);
+        vm.startPrank(firstDepositor);
+        collateral.approve(address(vault), type(uint256).max);
+        vault.deposit(100_001 ether, firstDepositor);
+        vm.stopPrank();
     }
 }

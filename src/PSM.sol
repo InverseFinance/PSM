@@ -187,6 +187,8 @@ contract PSM {
 
         address oldVault = address(vault);
         vault = IERC4626(newVault);
+        require(vault.totalSupply() >= minTotalSupply, "New vault does not meet min total supply");
+
         uint256 collateralBalance = collateral.balanceOf(address(this));
         require(collateralBalance >= minCollateralAmount, "Insufficient collateral balance for migration");
         if (collateralBalance > 0) {
