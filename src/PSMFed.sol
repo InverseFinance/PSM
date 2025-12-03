@@ -24,7 +24,7 @@ contract PSMFed {
     event SupplyCapUpdated(uint256 oldSupplyCap, uint256 newSupplyCap);
     event Expansion(address indexed psm, uint256 amount);
     event Contraction(address indexed psm, uint256 amount);
-    
+
     constructor(address _psm, address _gov, address _chair, address _dola) {
         psm = _psm;
         gov = _gov;
