@@ -22,6 +22,8 @@ contract PSMFed {
     event PendingGovUpdated(address indexed pendingGov);
     event ChairChanged(address indexed oldChair, address indexed newChair);
     event SupplyCapUpdated(uint256 oldSupplyCap, uint256 newSupplyCap);
+    event Expansion(uint256 amount);
+    event Contraction(uint256 amount);
 
     constructor(address _psm, address _gov, address _chair, address _dola) {
         psm = _psm;
@@ -52,6 +54,7 @@ contract PSMFed {
         require(amount + supply <= supplyCap, "Supply cap exceeded");
         supply += amount;
         DOLA.mint(psm, amount);
+        emit Expansion(amount);
     }
 
     /**
@@ -66,6 +69,7 @@ contract PSMFed {
         supply -= amount;
         DOLA.transferFrom(psm, address(this), amount);
         DOLA.burn(amount);
+        emit Contraction(amount);
     }
 
     /**

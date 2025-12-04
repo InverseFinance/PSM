@@ -441,7 +441,7 @@ contract PSMTest is Test {
         uint256 sellFee1 = dolaToSell1 * psm.sellFeeBps() / 10000; // 1% sell fee
         uint256 sellFee2 = dolaToSell2 * psm.sellFeeBps() / 10000; // 1% sell fee
         assertEq(collateral.balanceOf(user), user1CollateralBal - (buyFee1 + sellFee1)); // User 1 gets back collateral minus fees
-            // Profit should include fees from both users
+        // Profit should include fees from both users
         assertEq(psm.getProfit(), psmProfit + buyFee1 + buyFee2 + sellFee1 + sellFee2);
         psm.takeProfit(); // Take profit
 
